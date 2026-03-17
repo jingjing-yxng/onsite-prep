@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings — onsite.</title>
+<link rel="stylesheet" href="engine.css">
+</head>
+<body>
+
+<div class="dashboard-wrap">
+
+  <div class="dashboard-header">
+    <div class="dashboard-header-row">
+      <a href="index.html" class="settings-back">&larr; Back</a>
+    </div>
+    <h1 style="margin-top:8px;">Settings</h1>
+  </div>
+
+  <!-- API Key Section -->
+  <div class="settings-card">
+    <div class="settings-card-header">
+      <h3>AI Provider</h3>
+      <div class="info-tooltip">
+        <span class="info-icon">i</span>
+        <div class="info-tooltip-content">
+          An API key lets this app connect to an AI model to analyze your resume and job description, then generate tailored interview prep materials. Your key is stored locally in your browser and is only sent to the provider you select.
+        </div>
+      </div>
+    </div>
+    <p class="settings-desc">Connect an LLM to auto-generate prep materials from your resume and job description.</p>
+
+    <div class="provider-cards" id="providerCards">
+      <div class="provider-card selected" data-provider="claude" onclick="selectProvider('claude')">
+        <img class="provider-logo" src="icons/claude.webp" alt="Claude">
+        <span>Claude</span>
+      </div>
+      <div class="provider-card" data-provider="openai" onclick="selectProvider('openai')">
+        <img class="provider-logo" src="icons/openai.png" alt="OpenAI">
+        <span>OpenAI</span>
+      </div>
+      <div class="provider-card" data-provider="deepseek" onclick="selectProvider('deepseek')">
+        <img class="provider-logo" src="icons/deepseek.webp" alt="DeepSeek">
+        <span>DeepSeek</span>
+      </div>
+      <div class="provider-card" data-provider="kimi" onclick="selectProvider('kimi')">
+        <img class="provider-logo" src="icons/kimi.webp" alt="Kimi">
+        <span>Kimi</span>
+      </div>
+    </div>
+
+    <div class="form-row" style="margin-top:20px;">
+      <div class="form-field">
+        <label>API Key</label>
+        <div class="api-key-wrap">
+          <input type="password" id="apiKey" placeholder="sk-..." oninput="saveApiSettings()">
+          <button class="api-key-toggle" onclick="toggleApiKeyVisibility()" title="Show/hide key">
+            <svg id="eyeIcon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" stroke-width="1.3"/>
+              <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="api-status" id="apiStatus"></div>
+    <div class="api-help-text" id="apiHelpText"></div>
+
+  </div>
+
+  <!-- Data Management -->
+  <div class="settings-card">
+    <h3>Data</h3>
+    <p class="settings-desc">Export all your preps as a JSON backup, or import from a previous export.</p>
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="dash-btn" onclick="exportAll()">Export All</button>
+      <label class="dash-btn" style="cursor:pointer;">Import <input type="file" accept=".json" style="display:none;" onchange="importAll(event)"></label>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+
+<script>
+  requireAuth();
+
+  // ===== PROVIDER HELP =====
+  const providerHelp = {
+    claude:   { placeholder: 'sk-ant-...', link: 'https://console.anthropic.com/settings/keys', label: 'console.anthropic.com' },
+    openai:   { placeholder: 'sk-...',     link: 'https://platform.openai.com/api-keys',        label: 'platform.openai.com' },
+    deepseek: { placeholder: 'sk-...',     link: 'https://platform.deepseek.com/api_keys',      label: 'platform.deepseek.com' },
+    kimi:     { placeholder: 'sk-...',     link: 'https://platform.moonshot.cn/console/api-keys', label: 'platform.moonshot.cn' }
+  };
+
+  let currentProvider = 'claude';
+
+  function selectProvider(provider) {
+    currentProvider = provider;
+    document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+    document.querySelector(`.provider-card[data-provider="${provider}"]`).classList.add('selected');
+    updateHelp();
+    saveApiSettings();
+  }
+
+  function updateHelp() {
+    const info = providerHelp[currentProvider];
+    document.getElementById('apiKey').placeholder = info.placeholder;
+    document.getElementById('apiHelpText').innerHTML = 'Get a key from <a href="' + info.link + '" target="_blank">' + info.label + '</a>';
+  }
+
+  function saveApiSettings() {
+    const key = document.getElementById('apiKey').value.trim();
+    localStorage.setItem('interview-prep-api', JSON.stringify({ provider: currentProvider, key }));
+    updateApiStatus();
+  }
+
+  function loadApiSettings() {
+    const saved = localStorage.getItem('interview-prep-api');
+    if (saved) {
+      const settings = JSON.parse(saved);
+      currentProvider = settings.provider || 'claude';
+      document.getElementById('apiKey').value = settings.key || '';
+      document.querySelectorAll('.provider-card').forEach(c => c.classList.remove('selected'));
+      const card = document.querySelector(`.provider-card[data-provider="${currentProvider}"]`);
+      if (card) card.classList.add('selected');
+    }
+    updateHelp();
+    updateApiStatus();
+  }
+
+  function updateApiStatus() {
+    const key = document.getElementById('apiKey').value.trim();
+    const status = document.getElementById('apiStatus');
+    if (key) {
+      const masked = key.slice(0, 7) + '...' + key.slice(-4);
+      status.innerHTML = '<span style="color:var(--green);">Key saved</span> <span style="color:var(--text-dim);">(' + masked + ')</span>';
+    } else {
+      status.textContent = '';
+    }
+  }
+
+  function toggleApiKeyVisibility() {
+    const input = document.getElementById('apiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  // ===== DATA EXPORT/IMPORT (shared logic) =====
+  function getRegistry() {
+    const raw = localStorage.getItem('interview-prep-registry');
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function exportAll() {
+    const registry = getRegistry();
+    const exported = { registry, data: {} };
+    registry.forEach(prep => {
+      exported.data[prep.slug] = {};
+      ['content', 'checklist', 'edits', 'prep-sheet', 'documents'].forEach(key => {
+        const val = localStorage.getItem(prep.slug + '-' + key);
+        if (val) exported.data[prep.slug][key] = val;
+      });
+    });
+    const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'interview-prep-export-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importAll(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!imported.registry || !imported.data) { alert('Invalid import file.'); return; }
+        const existing = getRegistry();
+        const existingSlugs = new Set(existing.map(r => r.slug));
+        imported.registry.forEach(prep => { if (!existingSlugs.has(prep.slug)) existing.push(prep); });
+        localStorage.setItem('interview-prep-registry', JSON.stringify(existing));
+        Object.keys(imported.data).forEach(slug => {
+          Object.keys(imported.data[slug]).forEach(key => {
+            localStorage.setItem(slug + '-' + key, imported.data[slug][key]);
+          });
+        });
+        alert('Import successful!');
+      } catch (err) { alert('Failed to import: ' + err.message); }
+    };
+    reader.readAsText(file); event.target.value = '';
+  }
+
+  // INIT
+  loadApiSettings();
+</script>
+
+</body>
+</html>

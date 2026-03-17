@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>onsite.</title>
+<link rel="stylesheet" href="engine.css">
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <a href="index.html" class="sidebar-back">&larr; Dashboard</a>
+  <div class="sidebar-header">
+    <h1 id="sidebarTitle"></h1>
+    <div class="sidebar-sub" id="sidebarSub"></div>
+  </div>
+
+  <div class="sidebar-tabs">
+    <div class="sidebar-tab active" onclick="switchTab('general')">General Prep</div>
+    <div class="sidebar-tab" onclick="switchTab('sheet')">Prep Sheet</div>
+  </div>
+
+  <div class="sidebar-nav" id="sidebarNav"></div>
+  <div class="sidebar-nav" id="sidebarNavSheet" style="display:none;"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main-wrap">
+
+  <!-- General Prep Tab -->
+  <div class="tab-page active" id="tab-general">
+    <div class="page-content" id="generalPrepContent"></div>
+  </div>
+
+  <!-- Prep Sheet Tab -->
+  <div class="tab-page" id="tab-sheet">
+    <div class="page-content">
+      <div class="prep-sheet" id="prepSheetContent"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Progress bar -->
+<div class="progress-bar">
+  <span class="progress-text" id="progressText">0 / 0 done</span>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- Flashcard button -->
+<button class="flashcard-trigger" id="flashcardBtn" onclick="openFlashcards()">Practice</button>
+
+<!-- Flashcard overlay -->
+<div class="flashcard-overlay" id="flashcardOverlay">
+  <button class="fc-close" onclick="closeFlashcards()">&times;</button>
+  <div class="flashcard" id="flashcard" onclick="flipCard()">
+    <div class="flashcard-front" id="fcFront"></div>
+    <div class="flashcard-back" id="fcBack"></div>
+  </div>
+  <div class="flashcard-controls">
+    <button class="fc-btn" onclick="prevCard()">&larr; Prev</button>
+    <button class="fc-btn primary" onclick="nextCard()">Next &rarr;</button>
+  </div>
+  <div class="fc-counter" id="fcCounter"></div>
+</div>
+
+<!-- Auth -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+
+<!-- Data files (seeds) -->
+<script src="data/kimi.js"></script>
+<script src="data/template.js"></script>
+
+<!-- Engine (auto-inits from URL param) -->
+<script>requireAuth();</script>
+<script src="engine.js"></script>
+
+</body>
+</html>
