@@ -144,7 +144,8 @@ Rules: Return ONLY valid JSON. Create 1 card per major checklist item. Use <b>, 
 }
 
 function buildGeneratePrompt(resumeText, jdText, bilingual, languages) {
-  const l2 = languages?.[1] || 'zh';
+  // Find the non-English language (could be at index 0 or 1)
+  const l2 = (languages && languages.find(l => l !== 'en')) || 'zh';
   const l2Name = langName(l2);
   const bilingualNote = bilingual
     ? `This prep kit must be BILINGUAL: English + ${l2Name}. Every field with language variants needs both "en" and "${l2}" keys.`

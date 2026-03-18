@@ -65,7 +65,7 @@ function langName(code) {
 }
 
 function buildPrompt(resumeText, jdText, bilingual, languages) {
-  const l2 = languages?.[1] || 'zh';
+  const l2 = (languages && languages.find(l => l !== 'en')) || 'zh';
   const l2Name = langName(l2);
 
   const bilingualNote = bilingual
