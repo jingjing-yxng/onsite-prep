@@ -1,5 +1,8 @@
 // Vercel serverless function — proxies LLM API calls (avoids CORS)
 
+// Increase Vercel function timeout to 60 seconds
+module.exports.config = { maxDuration: 60 };
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -11,11 +14,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const langInstruction = bilingual && languages?.length === 2
-    ? `Generate ALL content in BOTH ${langName(languages[0])} and ${langName(languages[1])}. Every text field that has language variants must include both.`
-    : `Generate all content in English only. For zh/bilingual fields, leave them as empty strings.`;
-
-  const prompt = buildPrompt(resumeText, jdText, langInstruction, bilingual, languages);
+  const prompt = buildPrompt(resumeText, jdText, bilingual, languages);
 
   try {
     let result;
@@ -25,16 +24,13 @@ module.exports = async (req, res) => {
       result = await callOpenAICompatible(provider, apiKey, prompt);
     }
 
-    // Try to parse JSON from the response
-    let prepData;
-    try {
-      // Handle potential markdown code blocks
-      let jsonStr = result;
-      const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) jsonStr = jsonMatch[1];
-      prepData = JSON.parse(jsonStr.trim());
-    } catch (e) {
-      return res.status(422).json({ error: 'Failed to parse AI response as JSON', raw: result.slice(0, 500) });
+    // Aggressively extract JSON from response
+    const prepData = extractJSON(result);
+    if (!prepData) {
+      return res.status(422).json({
+        error: 'Failed to parse AI response as JSON',
+        raw: result.slice(0, 1000)
+      });
     }
 
     return res.status(200).json(prepData);
@@ -43,233 +39,131 @@ module.exports = async (req, res) => {
   }
 };
 
+function extractJSON(text) {
+  // Try direct parse
+  try { return JSON.parse(text.trim()); } catch(e) {}
+
+  // Try extracting from markdown code block
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) {
+    try { return JSON.parse(codeBlock[1].trim()); } catch(e) {}
+  }
+
+  // Try finding the first { and last }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try { return JSON.parse(text.slice(firstBrace, lastBrace + 1)); } catch(e) {}
+  }
+
+  return null;
+}
+
 function langName(code) {
   const map = { en: 'English', zh: 'Chinese (中文)', fr: 'French', es: 'Spanish', de: 'German', ja: 'Japanese', ko: 'Korean', pt: 'Portuguese', ar: 'Arabic' };
   return map[code] || code;
 }
 
-// ===== PROMPT =====
-function buildPrompt(resumeText, jdText, langInstruction, bilingual, languages) {
-  const l1 = languages?.[0] || 'en';
-  const l2 = languages?.[1] || 'en';
+function buildPrompt(resumeText, jdText, bilingual, languages) {
+  const l2 = languages?.[1] || 'zh';
+  const l2Name = langName(l2);
 
-  return `You are an elite interview coach. A candidate is preparing for a specific job interview. You have their resume and the job description. Generate a COMPLETE, deeply personalized interview prep kit.
+  const bilingualNote = bilingual
+    ? `This prep kit must be BILINGUAL: English + ${l2Name}. Every field with language variants needs both "en" and "${l2}" keys.`
+    : `This prep kit is English only. Omit all "${l2}" language keys — only include "en" keys.`;
 
-CRITICAL RULES:
-- Use SPECIFIC details from the resume: real company names, real metrics, real projects, real technologies.
-- Address SPECIFIC requirements from the job description: match each JD requirement to resume evidence.
-- Questions should be realistic for THIS EXACT role at THIS EXACT company.
-- Every answer should reference the candidate's actual experience, not generic advice.
-- Strengths should directly map resume achievements to JD requirements.
-- Gaps should honestly identify where the resume doesn't perfectly match the JD, with specific strategies to address each.
-- STAR stories must use REAL experiences from the resume with actual numbers.
-- ${langInstruction}
+  return `You are an elite interview coach. Generate a personalized interview prep kit from this resume and job description.
 
-===== RESUME =====
-${resumeText}
+${bilingualNote}
 
-===== JOB DESCRIPTION =====
-${jdText}
+RESUME:
+${resumeText.slice(0, 8000)}
 
-===== OUTPUT FORMAT =====
-Return a single JSON object (no markdown, no explanation, ONLY valid JSON) with this exact structure:
+JOB DESCRIPTION:
+${jdText.slice(0, 6000)}
+
+Generate a JSON object with this structure. Use SPECIFIC details from the resume (real company names, metrics, projects) and address SPECIFIC requirements from the JD.
+
+Return ONLY valid JSON — no markdown, no explanation, no text before or after the JSON.
 
 {
   "meta": {
-    "companyName": "Company Name from JD",
-    "companyNameZh": "${bilingual ? 'Chinese name if known, else empty' : ''}",
-    "role": "Exact role title from JD",
-    "roleZh": "${bilingual ? 'Chinese role title' : ''}",
+    "companyName": "string — company name from JD",
+    "companyNameZh": "string — Chinese name if bilingual, else empty",
+    "role": "string — role title from JD",
+    "roleZh": "string — Chinese role if bilingual, else empty",
     "sidebarTitle": "CompanyName <span>x</span> CandidateFirstName",
-    "sidebarSub": "Role Title<br>Company Name"
+    "sidebarSub": "Role<br>Company"
   },
   "pitch": {
-    "en": {
-      "label": "Memorize — say it naturally",
-      "text": "A 30-second elevator pitch (3-4 sentences) that weaves the candidate's TOP achievements into why they're perfect for THIS role. Use specific metrics from resume. Must sound conversational, not robotic."
-    }${bilingual ? `,
-    "${l2}": {
-      "label": "${l2 === 'zh' ? '背熟 — 自然地说出来' : 'Memorize — say it naturally'}",
-      "text": "Same pitch translated naturally into ${langName(l2)}"
-    }` : ''}
+    "en": { "label": "Memorize — say it naturally", "text": "A conversational 30-second pitch (3-4 sentences) using specific resume achievements that show why this candidate is perfect for THIS role" }${bilingual ? `,\n    "${l2}": { "label": "label in ${l2Name}", "text": "natural translation" }` : ''}
   },
   "strengths": {
     "en": {
-      "rows": [
-        ["JD Requirement 1", "<strong>Company</strong>: specific achievement with metrics"],
-        ["JD Requirement 2", "<strong>Company</strong>: specific achievement with metrics"],
-        ... (6-9 rows mapping JD requirements to resume evidence)
-      ],
-      "gaps": [
-        { "title": "Gap: specific JD requirement not fully met", "text": "How to address it using related experience. Be specific." },
-        ... (1-3 gaps)
-      ]
-    }${bilingual ? `,
-    "${l2}": {
-      "rows": [...same content translated...],
-      "gaps": [...same content translated...]
-    }` : ''}
+      "rows": [["JD requirement", "<strong>Company</strong>: specific achievement"], ...6-8 rows],
+      "gaps": [{"title": "Gap: specific shortfall", "text": "How to address with related experience"}, ...1-2 gaps]
+    }${bilingual ? `,\n    "${l2}": { "rows": [...translated...], "gaps": [...translated...] }` : ''}
   },
   "questions": {
     "categories": [
       {
-        "label": { "en": "A — Role-Specific Strategy", "${l2}": "..." },
-        ${bilingual ? '' : '"values": null,'}
+        "label": {"en": "A — Category Name"${bilingual ? `, "${l2}": "translated"` : ''}},
         "items": [
           {
-            "question": { "en": "Specific question about this role/company", "${l2}": "..." },
-            "answer": {
-              "en": "<ul><li><strong>Key point</strong> with specific resume evidence</li>...</ul>",
-              "${l2}": "..."
-            }
-          },
-          ... (2-3 questions per category)
+            "question": {"en": "Realistic interview question"${bilingual ? `, "${l2}": "translated"` : ''}},
+            "answer": {"en": "<ul><li><strong>Point</strong> with resume evidence</li><li>Another point</li></ul>"${bilingual ? `, "${l2}": "translated"` : ''}}
+          }
         ]
-      },
-      {
-        "label": { "en": "B — Company Knowledge", "${l2}": "..." },
-        "items": [...]
-      },
-      {
-        "label": { "en": "C — Behavioral / Culture Fit", "${l2}": "..." },
-        "items": [...]
-      },
-      {
-        "label": { "en": "D — Technical / Domain", "${l2}": "..." },
-        "items": [...]
       }
     ]
   },
   "company": {
-    "en": {
-      "rows": [
-        ["Founded", "Year, founder if known from JD"],
-        ["Industry", "..."],
-        ["Products", "Key products/services from JD"],
-        ["Role Focus", "What this specific role does"],
-        ["Team", "Team details if mentioned in JD"],
-        ... (5-8 rows of intel extracted from JD)
-      ]
-    }${bilingual ? `,
-    "${l2}": { "rows": [...translated...] }` : ''}
+    "en": { "rows": [["Label", "Detail from JD"], ...5-7 rows] }${bilingual ? `,\n    "${l2}": { "rows": [...translated...] }` : ''}
   },
   "askThem": {
-    "en": [
-      "Specific question showing you read the JD carefully",
-      "Question about team structure/growth mentioned in JD",
-      "Question about a specific challenge or initiative mentioned",
-      "What does success look like in the first 90 days?",
-      ... (4-5 questions)
-    ]${bilingual ? `,
-    "${l2}": [... translated ...]` : ''}
+    "en": ["Question 1 specific to JD", "Question 2", "Question 3", "Question 4"]${bilingual ? `,\n    "${l2}": [...translated...]` : ''}
   },
   "sensitive": {
-    "en": {
-      "title": "Potential Sensitive Topic (if any, otherwise use 'Career Transitions')",
-      "context": "Why this might come up based on resume/JD",
-      "script": "A neutral, prepared response",
-      "do_text": "What to emphasize",
-      "dont_text": "What to avoid",
-      "do_label": "Do",
-      "dont_label": "Don't"
-    }${bilingual ? `,
-    "${l2}": { ... translated ... }` : ''}
+    "en": { "title": "Potential topic", "context": "Why it might come up", "script": "Neutral response", "do_text": "Emphasize this", "dont_text": "Avoid this", "do_label": "Do", "dont_label": "Don't" }${bilingual ? `,\n    "${l2}": { "title": "", "context": "", "script": "", "do_text": "", "dont_text": "", "do_label": "", "dont_label": "" }` : ''}
   },
   "checklist": {
     "days": [
       {
-        "badge": "Day 1",
-        "label": { "en": "Today — Foundation", "${l2}": "..." },
-        "cssClass": "day-1",
-        "priority": "critical",
-        "priorityLabel": "Critical",
+        "badge": "Day 1", "label": {"en": "Today — Foundation"${bilingual ? `, "${l2}": "translated"` : ''}},
+        "cssClass": "day-1", "priority": "critical", "priorityLabel": "Critical",
         "items": [
-          {
-            "text": { "en": "<strong>Task</strong> — specific action tailored to this role", "${l2}": "..." },
-            "detail": { "en": "How to do it, specific to this company/role", "${l2}": "..." },
-            "time": "estimated time"
-          },
-          ... (4-5 items)
+          {"text": {"en": "<strong>Task</strong> — details"${bilingual ? `, "${l2}": "translated"` : ''}}, "detail": {"en": "How to do it"${bilingual ? `, "${l2}": "translated"` : ''}}, "time": "1h"}
         ]
       },
-      {
-        "badge": "Day 2",
-        "label": { "en": "Tomorrow — Depth & Polish", "${l2}": "..." },
-        "cssClass": "day-2",
-        "priority": "high",
-        "priorityLabel": "High",
-        "items": [... 4-5 items ...]
-      },
-      {
-        "badge": "Interview Day",
-        "label": { "en": "Morning of — Final warmup", "${l2}": "..." },
-        "cssClass": "day-of",
-        "priority": "medium",
-        "priorityLabel": "Warmup",
-        "items": [... 3 items ...]
-      }
+      {"badge": "Day 2", "label": {"en": "Tomorrow — Depth"${bilingual ? `, "${l2}": ""` : ''}}, "cssClass": "day-2", "priority": "high", "priorityLabel": "High", "items": [...]},
+      {"badge": "Interview Day", "label": {"en": "Morning — Warmup"${bilingual ? `, "${l2}": ""` : ''}}, "cssClass": "day-of", "priority": "medium", "priorityLabel": "Warmup", "items": [...]}
     ]
   },
   "flashcards": [
-    {
-      "en_q": "Most likely interview question for this role",
-      "${l2}_q": "${bilingual ? 'translated' : ''}",
-      "en_a": "Tailored answer with specific resume evidence",
-      "${l2}_a": "${bilingual ? 'translated' : ''}"
-    },
-    ... (6-8 flashcards covering the key questions)
+    {"en_q": "Question", "${l2}_q": "${bilingual ? 'translated' : ''}", "en_a": "Answer with resume evidence", "${l2}_a": "${bilingual ? 'translated' : ''}"},
+    ...6-8 flashcards
   ],
   "prepSheet": {
     "title": "CompanyName Interview Prep Sheet",
     "cards": [
-      {
-        "id": "card-1",
-        "title": "Product/Company Notes",
-        "hint": "Research the company's products. Specific things to look into based on JD.",
-        "content": "<b>Key Products</b><br>• extracted from JD<br><br><b>Things to Research</b><br>• specific items based on JD requirements"
-      },
-      {
-        "id": "card-2",
-        "title": "\\"Why This Company\\" Answer",
-        "hint": "The #1 question. Tailor to JD specifics.",
-        "content": "<b>Draft answer:</b><br>• [specific reason tied to JD]<br>• [specific reason tied to resume match]"
-      },
-      {
-        "id": "card-3",
-        "title": "30-Second Pitch",
-        "hint": "Practice until natural.",
-        "content": "<b>Key points:</b><br>• [from generated pitch]"
-      },
-      {
-        "id": "card-4",
-        "title": "STAR Stories",
-        "hint": "Use real experiences. 2-3 min each.",
-        "content": "<b>Story 1: [Real project from resume]</b><br><i>Situation:</i> [pre-filled from resume]<br><i>Task:</i> <br><i>Action:</i> <br><i>Result:</i> [pre-filled metrics]<br><br><b>Story 2: [Another real project]</b><br>..."
-      },
-      {
-        "id": "card-5",
-        "title": "Questions to Ask",
-        "hint": "Pick 3. Memorize.",
-        "content": "<b>Top picks:</b><br>• [from askThem section]"
-      },
-      {
-        "id": "card-6",
-        "title": "Scratch Pad",
-        "hint": null,
-        "content": ""
-      }
+      {"id": "card-1", "title": "Product Notes", "hint": "Research hints", "content": "<b>Section</b><br>• bullet"},
+      {"id": "card-2", "title": "Why This Company", "hint": "hint", "content": "<b>Draft</b><br>• reason"},
+      {"id": "card-3", "title": "30-Second Pitch", "hint": "hint", "content": "pitch outline"},
+      {"id": "card-4", "title": "STAR Stories", "hint": "hint", "content": "<b>Story 1: Real project from resume</b><br><i>Situation:</i> pre-filled<br><i>Task:</i> <br><i>Action:</i> <br><i>Result:</i> metrics"},
+      {"id": "card-5", "title": "Questions to Ask", "hint": "hint", "content": "top questions"},
+      {"id": "card-6", "title": "Scratch Pad", "hint": null, "content": ""}
     ]
   }
 }
 
-IMPORTANT:
-- Return ONLY the JSON object. No text before or after.
-- All HTML in content fields should use <strong>, <br>, <ul>, <li>, <i> tags.
-- Make the pitch sound natural and conversational, not like a list.
-- Questions should be ones a real interviewer at this company would ask.
-- Every answer must reference SPECIFIC experience from the resume.
-- ${bilingual ? `For bilingual fields, "${l2}" content must be natural ${langName(l2)}, not word-for-word translation.` : 'For non-bilingual: omit all zh/second-language fields or set them to empty strings.'}`;
+Rules:
+- Return ONLY the JSON object, nothing else.
+- Every answer must cite SPECIFIC resume experience with real metrics.
+- Generate 3-4 question categories with 2 questions each.
+- Checklist: Day 1 gets 4-5 items, Day 2 gets 4 items, Interview Day gets 3 items.
+- All HTML content uses <strong>, <br>, <ul>, <li>, <i> tags.`;
 }
+
 
 // ===== API CALLERS =====
 
@@ -283,14 +177,14 @@ async function callClaude(apiKey, prompt) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }]
     })
   });
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`Claude API error (${resp.status}): ${err}`);
+    throw new Error(`Claude API error (${resp.status}): ${err.slice(0, 300)}`);
   }
 
   const data = await resp.json();
@@ -314,9 +208,9 @@ async function callOpenAICompatible(provider, apiKey, prompt) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [
-        { role: 'system', content: 'You are an expert interview coach. Return only valid JSON, no markdown wrapping.' },
+        { role: 'system', content: 'You are an interview prep expert. Return ONLY valid JSON, no markdown wrapping, no text before or after.' },
         { role: 'user', content: prompt }
       ]
     })
@@ -324,7 +218,7 @@ async function callOpenAICompatible(provider, apiKey, prompt) {
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`${provider} API error (${resp.status}): ${err}`);
+    throw new Error(`${provider} API error (${resp.status}): ${err.slice(0, 300)}`);
   }
 
   const data = await resp.json();

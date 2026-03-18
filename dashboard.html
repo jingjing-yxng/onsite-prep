@@ -12,7 +12,7 @@
 
   <div class="dashboard-header">
     <div class="dashboard-header-row">
-      <a href="login.html" style="text-decoration:none;color:inherit;"><h1>onsite<span>.</span></h1></a>
+      <a href="index.html" style="text-decoration:none;color:inherit;"><h1>onsite<span>.</span></h1></a>
       <div style="display:flex;gap:8px;align-items:center;">
       <a href="settings.html" class="settings-icon" title="Settings">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -142,15 +142,47 @@
 <!-- Loading overlay -->
 <div class="gen-overlay" id="genOverlay">
   <div class="gen-overlay-content">
-    <div class="gen-spinner"></div>
-    <h3 id="genTitle">Building your edge...</h3>
-    <div class="gen-progress-wrap">
-      <div class="gen-progress-track">
-        <div class="gen-progress-fill" id="genProgressFill"></div>
-      </div>
-      <div class="gen-progress-pct" id="genProgressPct">0%</div>
+    <div class="gen-header-area">
+      <div class="gen-spinner"></div>
+      <h3 id="genTitle">Building your edge...</h3>
     </div>
-    <p id="genStatus">Reading through your resume</p>
+    <div class="gen-steps" id="genSteps">
+      <div class="gen-step" data-step="resume">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <span class="gen-step-label">Reading your resume</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="jd">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <span class="gen-step-label">Parsing the job description</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="pitch">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <span class="gen-step-label">Crafting your pitch</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="strengths">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <span class="gen-step-label">Mapping your strengths</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="questions">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+        <span class="gen-step-label">Generating interview questions</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="company">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 7V5a4 4 0 0 0-8 0v2"/></svg></div>
+        <span class="gen-step-label">Researching the company</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+      <div class="gen-step" data-step="finalize">
+        <div class="gen-step-icon"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <span class="gen-step-label">Putting it all together</span>
+        <span class="gen-step-check">&#10003;</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -305,30 +337,31 @@
     }
 
     // Show loading
-    showGenOverlay('Building your edge...', 'Reading through your resume');
+    showGenOverlay('Building your edge...');
     let ticker;
 
     try {
-      // Extract text from files
+      // Step 1: Resume
+      activateGenStep('resume');
       const resumeText = await extractText(npFiles.resume);
-      updateGenProgress(15, 'Parsing the job description');
+      completeGenStep('resume');
 
+      // Step 2: JD
+      activateGenStep('jd');
       const jdText = await extractText(npFiles.jd);
-      updateGenProgress(30, 'Crafting your personalized prep materials');
+      completeGenStep('jd');
 
-      // Slow-tick progress while waiting for AI
-      const genMsgs = [
-        [38, 'Analyzing your experience and the role'],
-        [46, 'Generating tailored interview questions'],
-        [54, 'Researching the company'],
-        [62, 'Building your strength profile'],
-        [68, 'Writing your pitch']
-      ];
-      let msgIdx = 0;
+      // Step 3+: Tick through AI steps while waiting
+      activateGenStep('pitch');
+      const aiSteps = ['pitch', 'strengths', 'questions', 'company'];
+      let stepIdx = 0;
       ticker = setInterval(() => {
-        if (msgIdx < genMsgs.length) {
-          updateGenProgress(genMsgs[msgIdx][0], genMsgs[msgIdx][1]);
-          msgIdx++;
+        if (stepIdx < aiSteps.length) {
+          completeGenStep(aiSteps[stepIdx]);
+          stepIdx++;
+          if (stepIdx < aiSteps.length) {
+            activateGenStep(aiSteps[stepIdx]);
+          }
         }
       }, 4000);
 
@@ -352,8 +385,11 @@
         throw new Error(err.error || `API returned ${resp.status}`);
       }
 
-      updateGenProgress(75, 'Putting it all together');
+      // Complete all remaining steps
+      completeAllGenSteps();
+      activateGenStep('finalize');
       const aiData = await resp.json();
+      completeGenStep('finalize');
 
       // Build the prep data object
       const slug = slugify(aiData.meta?.companyName || 'prep') + '-' + Date.now().toString(36);
@@ -476,21 +512,46 @@
   }
 
   // ===== LOADING OVERLAY =====
-  function showGenOverlay(title, status) {
+  function showGenOverlay(title) {
     document.getElementById('genTitle').textContent = title;
-    document.getElementById('genStatus').textContent = status;
-    document.getElementById('genProgressFill').style.width = '0%';
-    document.getElementById('genProgressPct').textContent = '0%';
+    // Reset all steps
+    document.querySelectorAll('.gen-step').forEach(el => {
+      el.classList.remove('active', 'done');
+    });
     document.getElementById('genOverlay').classList.add('active');
   }
-  function updateGenProgress(pct, status) {
-    document.getElementById('genProgressFill').style.width = pct + '%';
-    document.getElementById('genProgressPct').textContent = pct + '%';
-    if (status) document.getElementById('genStatus').textContent = status;
+  function activateGenStep(stepName) {
+    const steps = document.querySelectorAll('.gen-step');
+    let found = false;
+    steps.forEach(el => {
+      if (found) return; // don't touch steps after the target
+      if (el.dataset.step === stepName) {
+        // Mark all previous as done
+        el.classList.remove('done');
+        el.classList.add('active');
+        found = true;
+      } else if (el.classList.contains('active')) {
+        el.classList.remove('active');
+        el.classList.add('done');
+      }
+    });
   }
-  function updateGenStatus(status) {
-    document.getElementById('genStatus').textContent = status;
+  function completeGenStep(stepName) {
+    const el = document.querySelector(`.gen-step[data-step="${stepName}"]`);
+    if (el) {
+      el.classList.remove('active');
+      el.classList.add('done');
+    }
   }
+  function completeAllGenSteps() {
+    document.querySelectorAll('.gen-step').forEach(el => {
+      el.classList.remove('active');
+      el.classList.add('done');
+    });
+  }
+  // Keep legacy functions as no-ops for compatibility
+  function updateGenProgress(pct, status) {}
+  function updateGenStatus(status) {}
   function hideGenOverlay() {
     document.getElementById('genOverlay').classList.remove('active');
   }
