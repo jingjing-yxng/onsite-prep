@@ -173,9 +173,12 @@ Return a JSON object containing ONLY the fields that need to change. Use the exa
 Rules:
 - Return ONLY valid JSON, no markdown, no explanation.
 - Preserve all existing content that isn't being changed.
-- For array fields, return the COMPLETE array for that field.
-- SPECIFICITY IS CRITICAL: When adding or updating company research, questions, or talking points, always reference specific products, features, competitors, and metrics — never produce generic bullets. If the company has multiple products/platforms, address each relevant one individually.
+- For array fields (questions.categories, company rows, checklist days, etc.), return the COMPLETE array for that field.
+- PREP SHEET CARDS: For prepSheet.cards, return ONLY the cards you are modifying or adding — NOT the entire array. Each card must have an "id" field. Use the existing card's ID to update it, or use a new ID (e.g. "card-new-1") to add a new card. NEVER return cards you did not change — unchanged cards will be preserved automatically.
+- NEVER duplicate existing cards. NEVER reorganize or reorder cards the user didn't ask about.
+- SPECIFICITY IS CRITICAL: When adding or updating company research, questions, or talking points, always reference specific products, features, competitors, and metrics — never produce generic bullets.
 - When the user asks to "add more detail" or "research more," break down the company's product portfolio and competitive landscape rather than adding surface-level facts.
+- For bullet lists, use <ul><li>...</li></ul> — NEVER use "•" or "·" dot characters.
 - Also return a "chatResponse" field with a brief (1 sentence) confirmation of what you changed.`;
 }
 

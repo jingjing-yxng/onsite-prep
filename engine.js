@@ -1461,6 +1461,27 @@ async function sendChat() {
     saveChatHistory('ai', responseText);
 
     // Apply updates (deep merge into currentData, skip chatResponse)
+    // Special handling for prepSheet.cards: merge by card ID instead of replacing
+    if (updates.prepSheet && updates.prepSheet.cards && currentData.prepSheet && currentData.prepSheet.cards) {
+      const existingCards = currentData.prepSheet.cards;
+      const updatedCards = updates.prepSheet.cards;
+      updatedCards.forEach(updatedCard => {
+        const idx = existingCards.findIndex(c => c.id === updatedCard.id);
+        if (idx !== -1) {
+          // Update existing card in place
+          Object.assign(existingCards[idx], updatedCard);
+        } else {
+          // New card — append
+          existingCards.push(updatedCard);
+        }
+      });
+      // Remove cards key from updates so deepMerge doesn't overwrite
+      const { cards, ...restPrepSheet } = updates.prepSheet;
+      if (Object.keys(restPrepSheet).length > 0) {
+        deepMerge(currentData.prepSheet, restPrepSheet);
+      }
+      delete updates.prepSheet;
+    }
     Object.keys(updates).forEach(key => {
       if (key === 'chatResponse') return;
       if (currentData[key] && typeof currentData[key] === 'object' && !Array.isArray(currentData[key])
