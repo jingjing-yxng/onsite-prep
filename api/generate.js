@@ -172,8 +172,8 @@ Return ONLY valid JSON — no markdown, no explanation, no text before or after 
   "prepSheet": {
     "title": "CompanyName Interview Prep Sheet",
     "cards": [
-      {"id": "card-1", "title": "Product Deep Dive", "hint": "One section PER product/platform relevant to this role", "content": "<b>[Product 1 Name]</b><br>• What it does and who uses it<br>• Key features / differentiators<br>• How this role touches it<br><br><b>[Product 2 Name]</b><br>• Same structure<br><br><b>Competitive Positioning</b><br>• vs [Competitor 1]: ...<br>• vs [Competitor 2]: ..."},
-      {"id": "card-2", "title": "Why This Company", "hint": "Tie each reason to something specific — a product, a value, a market opportunity", "content": "<b>Draft — Why [Company]</b><br>• Product-specific reason<br>• Market/mission reason<br>• Team/culture reason"},
+      {"id": "card-1", "title": "Product Deep Dive", "hint": "One section PER product/platform relevant to this role", "content": "<b>[Product 1 Name]</b><ul><li>What it does and who uses it</li><li>Key features / differentiators</li><li>How this role touches it</li></ul><b>[Product 2 Name]</b><ul><li>Same structure</li></ul><b>Competitive Positioning</b><ul><li>vs [Competitor 1]: ...</li><li>vs [Competitor 2]: ...</li></ul>"},
+      {"id": "card-2", "title": "Why This Company", "hint": "Tie each reason to something specific — a product, a value, a market opportunity", "content": "<b>Draft — Why [Company]</b><ul><li>Product-specific reason</li><li>Market/mission reason</li><li>Team/culture reason</li></ul>"},
       {"id": "card-3", "title": "30-Second Pitch", "hint": "hint", "content": "pitch outline"},
       {"id": "card-4", "title": "STAR Stories", "hint": "Map each story to a specific JD requirement or product area", "content": "<b>Story 1: Real project from resume → maps to [JD requirement]</b><br><i>Situation:</i> pre-filled<br><i>Task:</i> <br><i>Action:</i> <br><i>Result:</i> metrics"},
       {"id": "card-5", "title": "Questions to Ask", "hint": "hint", "content": "top questions"},
@@ -190,7 +190,7 @@ Rules:
 - The "sensitive" section MUST have exactly 3 items in the "items" array: (1) a competitor comparison with a NAMED competitor and specific product/market differences, (2) a company-specific controversy or known criticism — real issues like layoffs, lawsuits, failed products, regulatory trouble, or if none are public, the most credible criticism an informed candidate would know about, (3) an industry/external sensitivity only if genuinely relevant to this company's sector. Do NOT default to generic geopolitics unless it specifically affects this company.
 - Checklist items must be actionable and specific — "Try the free tier of [Product X]" not "Research company products." Include specific product names, competitor names, and search terms.
 - Checklist: Day 1 gets 4-5 items, Day 2 gets 4 items, Interview Day gets 3 items.
-- All HTML content uses <strong>, <br>, <ul>, <li>, <i> tags.`;
+- All HTML content uses <strong>, <br>, <ul>, <li>, <i> tags. For bullet lists, ALWAYS use <ul><li>...</li></ul> — NEVER use "•" or "·" dot characters with <br> tags.`;
 }
 
 

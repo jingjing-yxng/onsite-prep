@@ -1269,7 +1269,7 @@ function rebuildSheetNav() {
     item.setAttribute('data-card-id', id);
     item.setAttribute('draggable', 'true');
     item.innerHTML = `
-      <span class="sn-drag" title="Drag to reorder">&#x2807;&#x2807;</span>
+      <span class="sn-drag" title="Drag to reorder">&#x283F;</span>
       <span class="sn-num">${i + 1}</span>
       <span class="sn-title">${title}</span>
     `;

@@ -161,7 +161,7 @@ Return a JSON object with this structure:
         "id": "card-gen-1",
         "title": "Card title",
         "hint": "How to use this card",
-        "content": "<b>Section heading</b><br>• Specific, actionable bullet<br>• Another bullet with real detail<br><br><b>Another section</b><br>• ..."
+        "content": "<b>Section heading</b><ul><li>Specific, actionable bullet</li><li>Another bullet with real detail</li></ul><b>Another section</b><ul><li>...</li></ul>"
       }
     ]
   }
@@ -172,7 +172,7 @@ Rules:
 - Be SPECIFIC — use real product names, features, and details from the company intel. Never write generic bullets like "research the company's products" when you have the actual product info.
 - If the company has multiple products or business units, dedicate a card (or a detailed section within a card) to EACH relevant one.
 - Each bullet should be something the candidate can directly use or say — not a vague reminder.
-- Use <b>, <br>, <i>, <ul>, <li> for formatting.
+- Use <b>, <br>, <i>, <ul>, <li> for formatting. For bullet lists, ALWAYS use <ul><li>...</li></ul> — NEVER use "•" or "·" dot characters with <br> tags.
 - Keep card titles short and actionable.
 - Don't duplicate cards already well-covered in the existing prep sheet.
 - Aim for 8-12 cards total — more cards with focused depth is better than fewer generic ones.`;
