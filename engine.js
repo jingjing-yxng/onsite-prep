@@ -95,7 +95,7 @@ function renderSidebar() {
     { id: 'questions', label: 'Questions' },
     { id: 'company', label: 'Company Intel' },
     { id: 'ask-them', label: 'Ask Them' },
-    { id: 'controversy', label: 'Sensitive' },
+    { id: 'controversy', label: 'Competitors' },
     { id: 'checklist', label: 'Checklist' }
   ];
   navContainer.innerHTML = sections.map((s, i) =>
@@ -263,23 +263,29 @@ function renderGeneralPrep() {
     </div>
   </section>`;
 
-  // 6. Sensitive
+  // 6. Competitors & Controversy
   function renderSensitiveCol(lang, data) {
-    return `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
-      <div class="controversy-card">
-        <h3 data-path="sensitive.${lang}.title">${data.title}</h3>
-        <p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;" data-path="sensitive.${lang}.context">${data.context}</p>
-        <div class="script-box" data-path="sensitive.${lang}.script">${data.script}</div>
+    // Support both old single-item format and new array format
+    const items = data.items || [data];
+    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>`;
+    items.forEach((item, idx) => {
+      const pathPrefix = data.items ? `sensitive.${lang}.items.${idx}` : `sensitive.${lang}`;
+      s += `<div class="controversy-card">
+        <h3 data-path="${pathPrefix}.title">${item.title}</h3>
+        <p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;" data-path="${pathPrefix}.context">${item.context}</p>
+        <div class="script-box" data-path="${pathPrefix}.script">${item.script}</div>
         <div class="do-dont">
-          <div class="do-col"><h4>${data.do_label}</h4><p data-path="sensitive.${lang}.do_text">${data.do_text}</p></div>
-          <div class="dont-col"><h4>${data.dont_label}</h4><p data-path="sensitive.${lang}.dont_text">${data.dont_text}</p></div>
+          <div class="do-col"><h4>${item.do_label}</h4><p data-path="${pathPrefix}.do_text">${item.do_text}</p></div>
+          <div class="dont-col"><h4>${item.dont_label}</h4><p data-path="${pathPrefix}.dont_text">${item.dont_text}</p></div>
         </div>
-      </div>
-    </div>`;
+      </div>`;
+    });
+    s += '</div>';
+    return s;
   }
   html += `<section id="controversy">
     <div class="section-header"><div class="section-num">6</div>
-      <h2>Sensitive Topic</h2>
+      <h2>Competitors & Controversy</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderSensitiveCol('en', d.sensitive.en)}

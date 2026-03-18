@@ -107,7 +107,8 @@ async function chatClient(message, currentData, provider, apiKey, action) {
 }
 
 function buildChatPromptClient(message, data) {
-  return `You are an interview prep editor. The user has an existing interview prep kit and wants to make changes.
+  const meta = data.meta || {};
+  return `You are an interview prep editor with deep knowledge of ${meta.companyName || 'the company'}'s product landscape. The user has an existing interview prep kit for a ${meta.role || ''} role and wants to make changes.
 
 CURRENT PREP DATA:
 ${JSON.stringify(data, null, 2)}
@@ -121,6 +122,8 @@ Rules:
 - Return ONLY valid JSON, no markdown, no explanation.
 - Preserve all existing content that isn't being changed.
 - For array fields, return the COMPLETE array for that field.
+- SPECIFICITY IS CRITICAL: When adding or updating company research, questions, or talking points, always reference specific products, features, competitors, and metrics — never produce generic bullets. If the company has multiple products/platforms, address each relevant one individually.
+- When the user asks to "add more detail" or "research more," break down the company's product portfolio and competitive landscape rather than adding surface-level facts.
 - Also return a "chatResponse" field with a brief (1 sentence) confirmation of what you changed.`;
 }
 
@@ -133,14 +136,95 @@ function buildNotesPromptClient(data) {
       });
     });
   }
-  return `Generate Prep Sheet note cards based on these checklist items.
 
-CHECKLIST: ${JSON.stringify(checklistItems)}
-EXISTING PREP SHEET: ${JSON.stringify(data.prepSheet)}
+  const meta = data.meta || {};
+  const companyIntel = data.company?.en?.rows || [];
+  const strengths = data.strengths?.en?.rows || [];
+  const gaps = data.strengths?.en?.gaps || [];
+  const questions = (data.questions?.categories || []).map(cat => ({
+    category: cat.label?.en || '',
+    questions: (cat.items || []).map(item => ({
+      q: item.question?.en || '',
+      a: (item.answer?.en || '').slice(0, 200)
+    }))
+  }));
+  const pitch = data.pitch?.en?.text || '';
+  const askThem = data.askThem?.en || [];
 
-Return JSON: { "chatResponse": "...", "prepSheet": { "title": "...", "cards": [{ "id": "card-gen-1", "title": "...", "hint": "...", "content": "..." }, ...] } }
+  return `You are a senior interview prep coach generating detailed, actionable Prep Sheet note cards. Your notes must reflect deep, specific knowledge of the company — not generic advice.
 
-Rules: Return ONLY valid JSON. Create 1 card per major checklist item. Use <b>, <br>, <i>, <ul>, <li> for formatting. Aim for 6-10 cards.`;
+ROLE CONTEXT:
+- Company: ${meta.companyName || 'Unknown'}
+- Position: ${meta.role || 'Unknown'}
+
+CANDIDATE'S 30-SECOND PITCH:
+${pitch}
+
+CANDIDATE'S STRENGTHS:
+${JSON.stringify(strengths, null, 2)}
+
+SKILL GAPS TO ADDRESS:
+${JSON.stringify(gaps, null, 2)}
+
+COMPANY INTEL (from prep kit):
+${JSON.stringify(companyIntel, null, 2)}
+
+LIKELY INTERVIEW QUESTIONS & ANSWERS:
+${JSON.stringify(questions, null, 2)}
+
+QUESTIONS THE CANDIDATE PLANS TO ASK:
+${JSON.stringify(askThem, null, 2)}
+
+CHECKLIST ACTION ITEMS:
+${JSON.stringify(checklistItems, null, 2)}
+
+EXISTING PREP SHEET (avoid duplicating these):
+${JSON.stringify(data.prepSheet, null, 2)}
+
+YOUR TASK:
+Generate Prep Sheet note cards that give the candidate a real competitive edge. For each card:
+
+1. **Company/Product Deep Dive**: If the company has multiple products, business lines, or platforms, create SEPARATE sections for each one that is relevant to the role. For each product/line:
+   - What it does, who it serves, and its market position
+   - Recent launches, pivots, or strategic shifts
+   - How it connects to the role the candidate is interviewing for
+   - Specific metrics, user counts, or business results if mentioned in the company intel
+
+2. **Role-Specific Talking Points**: Don't just list company facts — translate them into things the candidate can actually SAY in the interview. Frame bullets as "When they ask about X, mention Y because Z."
+
+3. **Connect Strengths to Products**: For each relevant product line, note which of the candidate's strengths maps to it and what specific example they could use.
+
+4. **Competitive Intelligence**: Identify 2-3 direct competitors from the company intel. For each, note what differentiates this company and how the candidate can reference that understanding in answers.
+
+5. **Prepare for Gap Questions**: For each skill gap, provide a concrete deflection strategy tied to the company's actual needs.
+
+6. **Research Templates**: Where the candidate needs to do more research, provide specific URLs, search queries, or resources to check — not just "research the company."
+
+Return a JSON object with this structure:
+{
+  "chatResponse": "Generated X detailed note cards covering [specific topics].",
+  "prepSheet": {
+    "title": "${data.prepSheet?.title || 'Interview Prep Sheet'}",
+    "cards": [
+      {
+        "id": "card-gen-1",
+        "title": "Card title",
+        "hint": "How to use this card",
+        "content": "<b>Section heading</b><br>• Specific, actionable bullet<br>• Another bullet with real detail<br><br><b>Another section</b><br>• ..."
+      }
+    ]
+  }
+}
+
+Rules:
+- Return ONLY valid JSON, no markdown wrapping.
+- Be SPECIFIC — use real product names, features, and details from the company intel. Never write generic bullets like "research the company's products" when you have the actual product info.
+- If the company has multiple products or business units, dedicate a card (or a detailed section within a card) to EACH relevant one.
+- Each bullet should be something the candidate can directly use or say — not a vague reminder.
+- Use <b>, <br>, <i>, <ul>, <li> for formatting.
+- Keep card titles short and actionable.
+- Don't duplicate cards already well-covered in the existing prep sheet.
+- Aim for 8-12 cards total — more cards with focused depth is better than fewer generic ones.`;
 }
 
 function buildGeneratePrompt(resumeText, jdText, bilingual, languages) {
@@ -151,7 +235,7 @@ function buildGeneratePrompt(resumeText, jdText, bilingual, languages) {
     ? `This prep kit must be BILINGUAL: English + ${l2Name}. Every field with language variants needs both "en" and "${l2}" keys.`
     : `This prep kit is English only. Omit all second language keys — only include "en" keys.`;
 
-  return `You are an elite interview coach. Generate a personalized interview prep kit from this resume and job description.
+  return `You are an elite interview coach with deep knowledge of company landscapes. Generate a personalized interview prep kit from this resume and job description.
 
 ${bilingualNote}
 
@@ -161,7 +245,17 @@ ${resumeText.slice(0, 8000)}
 JOB DESCRIPTION:
 ${jdText.slice(0, 6000)}
 
-Generate a JSON object with this structure. Use SPECIFIC details from the resume (real company names, metrics, projects) and address SPECIFIC requirements from the JD.
+Generate a JSON object with the structure below. Use SPECIFIC details from the resume (real company names, metrics, projects) and address SPECIFIC requirements from the JD.
+
+CRITICAL INSTRUCTIONS — COMPANY DEPTH:
+Before generating, analyze the JD to identify:
+- The company's individual products, platforms, and business lines (many companies have 3-10+ distinct products under one brand — identify ALL of them that are relevant to this role)
+- Which specific product/team this role sits in
+- The company's competitive landscape (who are the 2-3 direct competitors? what differentiates this company?)
+- The company's business model (B2B, B2C, SaaS, marketplace, etc.) and how this role contributes to revenue
+- Recent strategic signals in the JD (new team, scaling, pivoting, launching)
+
+Use this analysis throughout EVERY section — company intel, questions, checklist, and prep sheet cards.
 
 Return ONLY valid JSON — no markdown, no explanation, no text before or after the JSON.
 
@@ -175,7 +269,7 @@ Return ONLY valid JSON — no markdown, no explanation, no text before or after 
     "sidebarSub": "Role<br>Company"
   },
   "pitch": {
-    "en": { "label": "Memorize — say it naturally", "text": "A conversational 30-second pitch using specific resume achievements" }${bilingual ? `,\n    "${l2}": { "label": "label in ${l2Name}", "text": "natural translation" }` : ''}
+    "en": { "label": "Memorize — say it naturally", "text": "A conversational 30-second pitch using specific resume achievements. Reference the specific product/team if identifiable from the JD." }${bilingual ? `,\n    "${l2}": { "label": "label in ${l2Name}", "text": "natural translation" }` : ''}
   },
   "strengths": {
     "en": {
@@ -189,40 +283,56 @@ Return ONLY valid JSON — no markdown, no explanation, no text before or after 
         "label": {"en": "A — Category"${bilingual ? `, "${l2}": "translated"` : ''}},
         "items": [
           {
-            "question": {"en": "Realistic question"${bilingual ? `, "${l2}": "translated"` : ''}},
-            "answer": {"en": "<ul><li><strong>Point</strong> with resume evidence</li></ul>"${bilingual ? `, "${l2}": "translated"` : ''}}
+            "question": {"en": "Realistic question tied to a specific product, initiative, or challenge the company faces"${bilingual ? `, "${l2}": "translated"` : ''}},
+            "answer": {"en": "<ul><li><strong>Point</strong> with resume evidence tied to the company's specific context</li></ul>"${bilingual ? `, "${l2}": "translated"` : ''}}
           }
         ]
       }
     ]
   },
   "company": {
-    "en": { "rows": [["Label", "Detail from JD"], ...5-7 rows] }${bilingual ? `,\n    "${l2}": { "rows": [...translated...] }` : ''}
+    "en": {
+      "rows": [
+        ["Product/Platform", "Name and what it does — be specific about features, target users, and market position"],
+        ["Product/Platform 2", "If the company has multiple products, list EACH one separately with specifics"],
+        ["Competitive Landscape", "Name 2-3 direct competitors and what differentiates this company"],
+        ["Business Model", "How they make money, key metrics, pricing if known"],
+        ["Team/Org", "Which team this role sits in, team size signals, reporting structure clues from JD"],
+        ["Recent Signals", "New product launches, fundraising, strategic pivots inferred from JD language"],
+        ["Role Impact", "How this specific role connects to business outcomes"]
+      ]
+    }${bilingual ? `,\n    "${l2}": { "rows": [...translated, same structure...] }` : ''}
   },
   "askThem": {
-    "en": ["Question specific to JD", ...4 questions]${bilingual ? `,\n    "${l2}": [...translated...]` : ''}
+    "en": ["Product-specific question about roadmap or strategy", "Team/org structure question", "Question about success metrics for this role", "Question tied to a specific competitive challenge they face"]${bilingual ? `,\n    "${l2}": [...translated...]` : ''}
   },
   "sensitive": {
-    "en": { "title": "Topic", "context": "Why relevant", "script": "Response", "do_text": "Do this", "dont_text": "Avoid this", "do_label": "Do", "dont_label": "Don't" }${bilingual ? `,\n    "${l2}": { "title": "", "context": "", "script": "", "do_text": "", "dont_text": "", "do_label": "", "dont_label": "" }` : ''}
+    "en": {
+      "items": [
+        { "title": "Competitor: [Name] — how they compare", "context": "Specific comparison: what competitor does better/worse, market share, product differences", "script": "Prepared response for 'Why us over [Competitor]?'", "do_text": "Show you've researched the competitor", "dont_text": "Don't trash the competitor", "do_label": "Do", "dont_label": "Don't" },
+        { "title": "Company Controversy: [specific issue]", "context": "Known controversies — layoffs, lawsuits, product failures, PR crises, regulatory issues. Or the most likely criticism the company faces", "script": "Neutral, informed response", "do_text": "Acknowledge and pivot to what excites you", "dont_text": "Don't pretend ignorance or be overly critical", "do_label": "Do", "dont_label": "Don't" },
+        { "title": "Industry/External Sensitivity", "context": "Geopolitical, regulatory, or market topics relevant to this company's sector/geography", "script": "Balanced response", "do_text": "Show informed perspective", "dont_text": "Avoid strong political opinions", "do_label": "Do", "dont_label": "Don't" }
+      ]
+    }${bilingual ? `,\n    "${l2}": { "items": [...translated, same 3-item structure...] }` : ''}
   },
   "checklist": {
     "days": [
-      {"badge": "Day 1", "label": {"en": "Today — Foundation"${bilingual ? `, "${l2}": "translated"` : ''}}, "cssClass": "day-1", "priority": "critical", "priorityLabel": "Critical", "items": [{"text": {"en": "<strong>Task</strong>"${bilingual ? `, "${l2}": "translated"` : ''}}, "detail": {"en": "Details"${bilingual ? `, "${l2}": "translated"` : ''}}, "time": "1h"}, ...4-5 items]},
+      {"badge": "Day 1", "label": {"en": "Today — Foundation"${bilingual ? `, "${l2}": "translated"` : ''}}, "cssClass": "day-1", "priority": "critical", "priorityLabel": "Critical", "items": [{"text": {"en": "<strong>Task</strong> — product/company-specific"${bilingual ? `, "${l2}": "translated"` : ''}}, "detail": {"en": "Specific instructions — e.g. 'Try [Product X] free tier, note the onboarding flow' not 'Research the company'"${bilingual ? `, "${l2}": "translated"` : ''}}, "time": "1h"}, ...4-5 items]},
       {"badge": "Day 2", "label": {"en": "Tomorrow — Depth"${bilingual ? `, "${l2}": ""` : ''}}, "cssClass": "day-2", "priority": "high", "priorityLabel": "High", "items": [...4 items]},
       {"badge": "Interview Day", "label": {"en": "Morning — Warmup"${bilingual ? `, "${l2}": ""` : ''}}, "cssClass": "day-of", "priority": "medium", "priorityLabel": "Warmup", "items": [...3 items]}
     ]
   },
   "flashcards": [
-    {"en_q": "Question", "${bilingual ? l2 + '_q' : 'en_q'}": "${bilingual ? 'translated' : ''}", "en_a": "Answer", "${bilingual ? l2 + '_a' : 'en_a'}": "${bilingual ? 'translated' : ''}"},
+    {"en_q": "Question referencing specific product/company context", "${bilingual ? l2 + '_q' : 'en_q'}": "${bilingual ? 'translated' : ''}", "en_a": "Answer with resume evidence tied to company specifics", "${bilingual ? l2 + '_a' : 'en_a'}": "${bilingual ? 'translated' : ''}"},
     ...6-8 flashcards
   ],
   "prepSheet": {
     "title": "CompanyName Interview Prep Sheet",
     "cards": [
-      {"id": "card-1", "title": "Product Notes", "hint": "hints", "content": "<b>Section</b><br>• bullet"${bilingual ? `, "content_${l2}": "<b>translated section</b><br>• translated bullet"` : ''}},
-      {"id": "card-2", "title": "Why This Company", "hint": "hint", "content": "<b>Draft</b><br>• reason"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-1", "title": "Product Deep Dive", "hint": "One section PER product/platform relevant to this role", "content": "<b>[Product 1 Name]</b><br>• What it does and who uses it<br>• Key features / differentiators<br>• How this role touches it<br><br><b>[Product 2 Name]</b><br>• Same structure<br><br><b>Competitive Positioning</b><br>• vs [Competitor 1]: ...<br>• vs [Competitor 2]: ..."${bilingual ? `, "content_${l2}": "<b>translated</b><br>• translated"` : ''}},
+      {"id": "card-2", "title": "Why This Company", "hint": "Tie each reason to something specific — a product, a value, a market opportunity", "content": "<b>Draft — Why [Company]</b><br>• Product-specific reason<br>• Market/mission reason<br>• Team/culture reason"${bilingual ? `, "content_${l2}": "translated"` : ''}},
       {"id": "card-3", "title": "30-Second Pitch", "hint": "hint", "content": "outline"${bilingual ? `, "content_${l2}": "translated"` : ''}},
-      {"id": "card-4", "title": "STAR Stories", "hint": "hint", "content": "<b>Story 1</b><br><i>Situation:</i> pre-filled"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-4", "title": "STAR Stories", "hint": "Map each story to a specific JD requirement or product area", "content": "<b>Story 1: Real project → maps to [JD requirement]</b><br><i>Situation:</i> pre-filled<br><i>Task:</i> <br><i>Action:</i> <br><i>Result:</i> metrics"${bilingual ? `, "content_${l2}": "translated"` : ''}},
       {"id": "card-5", "title": "Questions to Ask", "hint": "hint", "content": "questions"${bilingual ? `, "content_${l2}": "translated"` : ''}},
       {"id": "card-6", "title": "Scratch Pad", "hint": null, "content": ""${bilingual ? `, "content_${l2}": ""` : ''}}
     ]
@@ -232,7 +342,9 @@ Return ONLY valid JSON — no markdown, no explanation, no text before or after 
 Rules:
 - Return ONLY the JSON object, nothing else.
 - Every answer must cite SPECIFIC resume experience with real metrics.
-- Generate 3-4 question categories with 2 questions each.
+- Generate 3-4 question categories with 2 questions each. At least one category should be product/domain-specific (e.g., "Product & Growth" not just "Behavioral").
+- Company intel MUST have 7-10 rows. Dedicate a separate row to EACH distinct product/platform. Never collapse multiple products into one generic "Products" row.
+- Checklist items must be actionable and specific — "Try the free tier of [Product X]" not "Research company products." Include specific product names, competitor names, and search terms.
 - Checklist: Day 1 gets 4-5 items, Day 2 gets 4 items, Interview Day gets 3 items.
 - All HTML content uses <strong>, <br>, <ul>, <li>, <i> tags.`;
 }

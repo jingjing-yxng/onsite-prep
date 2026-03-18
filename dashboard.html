@@ -354,18 +354,27 @@
       completeGenStep('jd');
 
       // Step 3+: Tick through AI steps while waiting
+      // Spread steps across ~35 seconds so "finalize" doesn't sit forever
       activateGenStep('pitch');
-      const aiSteps = ['pitch', 'strengths', 'questions', 'company'];
+      const aiSteps = [
+        { name: 'pitch', delay: 3000 },
+        { name: 'strengths', delay: 5000 },
+        { name: 'questions', delay: 7000 },
+        { name: 'company', delay: 8000 },
+        { name: 'finalize', delay: 10000 }
+      ];
       let stepIdx = 0;
-      ticker = setInterval(() => {
+      function tickNextStep() {
         if (stepIdx < aiSteps.length) {
-          completeGenStep(aiSteps[stepIdx]);
+          completeGenStep(aiSteps[stepIdx].name);
           stepIdx++;
           if (stepIdx < aiSteps.length) {
-            activateGenStep(aiSteps[stepIdx]);
+            activateGenStep(aiSteps[stepIdx].name);
+            ticker = setTimeout(tickNextStep, aiSteps[stepIdx].delay);
           }
         }
-      }, 4000);
+      }
+      ticker = setTimeout(tickNextStep, aiSteps[0].delay);
 
       // Call the LLM directly from browser (no Vercel timeout issues)
       const aiData = await generatePrepClient(
@@ -374,7 +383,7 @@
         apiSettings.key,
         bilingual, languages
       );
-      clearInterval(ticker);
+      clearTimeout(ticker);
 
       // Complete all remaining steps
       completeAllGenSteps();
@@ -439,7 +448,7 @@
       window.location.href = 'app.html?prep=' + encodeURIComponent(slug);
 
     } catch (err) {
-      if (ticker) clearInterval(ticker);
+      if (ticker) clearTimeout(ticker);
       hideGenOverlay();
       console.error('Generation error:', err);
       const retry = confirm('Generation failed: ' + err.message + '\n\nClick OK to create a blank prep, or Cancel to try again.');
@@ -505,47 +514,75 @@
   }
 
   // ===== LOADING OVERLAY =====
+  let elapsedTimer = null;
+  let elapsedStart = 0;
+
   function showGenOverlay(title) {
     document.getElementById('genTitle').textContent = title;
-    // Reset all steps
     document.querySelectorAll('.gen-step').forEach(el => {
       el.classList.remove('active', 'done');
+      // Remove any existing elapsed element
+      const old = el.querySelector('.gen-elapsed');
+      if (old) old.remove();
     });
     document.getElementById('genOverlay').classList.add('active');
+    elapsedStart = Date.now();
   }
+
   function activateGenStep(stepName) {
+    // Clear previous elapsed timer
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+
     const steps = document.querySelectorAll('.gen-step');
-    let found = false;
     steps.forEach(el => {
-      if (found) return; // don't touch steps after the target
+      // Remove elapsed from non-active steps
+      const elapsed = el.querySelector('.gen-elapsed');
+      if (elapsed) elapsed.remove();
+
       if (el.dataset.step === stepName) {
-        // Mark all previous as done
         el.classList.remove('done');
         el.classList.add('active');
-        found = true;
+        // Add elapsed counter
+        const counter = document.createElement('span');
+        counter.className = 'gen-elapsed';
+        el.appendChild(counter);
+        const stepStart = Date.now();
+        function updateElapsed() {
+          const secs = Math.floor((Date.now() - stepStart) / 1000);
+          counter.textContent = secs + 's';
+        }
+        updateElapsed();
+        elapsedTimer = setInterval(updateElapsed, 1000);
       } else if (el.classList.contains('active')) {
         el.classList.remove('active');
         el.classList.add('done');
       }
     });
   }
+
   function completeGenStep(stepName) {
     const el = document.querySelector(`.gen-step[data-step="${stepName}"]`);
     if (el) {
       el.classList.remove('active');
       el.classList.add('done');
+      const elapsed = el.querySelector('.gen-elapsed');
+      if (elapsed) elapsed.remove();
     }
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
   }
+
   function completeAllGenSteps() {
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
     document.querySelectorAll('.gen-step').forEach(el => {
       el.classList.remove('active');
       el.classList.add('done');
+      const elapsed = el.querySelector('.gen-elapsed');
+      if (elapsed) elapsed.remove();
     });
   }
-  // Keep legacy functions as no-ops for compatibility
-  function updateGenProgress(pct, status) {}
-  function updateGenStatus(status) {}
+
   function hideGenOverlay() {
+    if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
     document.getElementById('genOverlay').classList.remove('active');
   }
 

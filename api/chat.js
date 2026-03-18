@@ -39,7 +39,8 @@ module.exports = async (req, res) => {
 
 
 function buildChatPrompt(message, currentData) {
-  return `You are an interview prep editor. The user has an existing interview prep kit and wants to make changes.
+  const meta = currentData.meta || {};
+  return `You are an interview prep editor with deep knowledge of ${meta.companyName || 'the company'}'s product landscape. The user has an existing interview prep kit for a ${meta.role || ''} role and wants to make changes.
 
 CURRENT PREP DATA:
 ${JSON.stringify(currentData, null, 2)}
@@ -58,6 +59,8 @@ Rules:
 - Preserve all existing content that isn't being changed.
 - For array fields (like questions.categories, flashcards, checklist items), return the COMPLETE array for that field, not just the new item.
 - Keep the same tone, specificity, and personalization as the existing content.
+- SPECIFICITY IS CRITICAL: When adding or updating company research, questions, or talking points, always reference specific products, features, competitors, and metrics — never produce generic bullets. If the company has multiple products/platforms, address each relevant one individually.
+- When the user asks to "add more detail" or "research more," break down the company's product portfolio and competitive landscape rather than adding surface-level facts.
 - If the user's request is unclear, make your best interpretation and apply it.
 - Also return a "chatResponse" field with a brief (1 sentence) confirmation of what you changed.
 
@@ -142,9 +145,11 @@ Generate Prep Sheet note cards that give the candidate a real competitive edge. 
 
 3. **Connect Strengths to Products**: For each relevant product line, note which of the candidate's strengths maps to it and what specific example they could use.
 
-4. **Prepare for Gap Questions**: For each skill gap, provide a concrete deflection strategy tied to the company's actual needs.
+4. **Competitive Intelligence**: Identify 2-3 direct competitors from the company intel. For each, note what differentiates this company and how the candidate can reference that understanding in answers.
 
-5. **Research Templates**: Where the candidate needs to do more research, provide specific URLs, search queries, or resources to check — not just "research the company."
+5. **Prepare for Gap Questions**: For each skill gap, provide a concrete deflection strategy tied to the company's actual needs.
+
+6. **Research Templates**: Where the candidate needs to do more research, provide specific URLs, search queries, or resources to check — not just "research the company."
 
 Return a JSON object with this structure:
 {
