@@ -196,6 +196,7 @@
 <script src="config.js"></script>
 <script src="auth.js"></script>
 <script src="toast.js"></script>
+<script src="generate-client.js"></script>
 
 <!-- Data files (for seed access + progress calculation) -->
 <script src="data/kimi.js"></script>
@@ -366,30 +367,18 @@
         }
       }, 4000);
 
-      // Call the API
-      const resp = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resumeText,
-          jdText,
-          provider: apiSettings.provider || 'claude',
-          apiKey: apiSettings.key,
-          bilingual,
-          languages
-        })
-      });
+      // Call the LLM directly from browser (no Vercel timeout issues)
+      const aiData = await generatePrepClient(
+        resumeText, jdText,
+        apiSettings.provider || 'claude',
+        apiSettings.key,
+        bilingual, languages
+      );
       clearInterval(ticker);
-
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(err.error || `API returned ${resp.status}`);
-      }
 
       // Complete all remaining steps
       completeAllGenSteps();
       activateGenStep('finalize');
-      const aiData = await resp.json();
       completeGenStep('finalize');
 
       // Build the prep data object

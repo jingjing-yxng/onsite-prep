@@ -1386,23 +1386,11 @@ async function sendChat() {
   document.getElementById('chatSendBtn').disabled = true;
 
   try {
-    const resp = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: msg,
-        currentData: currentData,
-        provider: apiSettings.provider || 'claude',
-        apiKey: apiSettings.key
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(err.error || 'API error');
-    }
-
-    const updates = await resp.json();
+    const updates = await chatClient(
+      msg, currentData,
+      apiSettings.provider || 'claude',
+      apiSettings.key
+    );
 
     // Show confirmation
     const responseText = updates.chatResponse || 'Done — content updated.';
@@ -1496,23 +1484,12 @@ async function generateNotesFromChecklist() {
   btn.innerHTML = '<span class="btn-spinner"></span> Generating...';
 
   try {
-    const resp = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'generate-notes',
-        currentData: currentData,
-        provider: apiSettings.provider || 'claude',
-        apiKey: apiSettings.key
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(err.error || 'API error');
-    }
-
-    const updates = await resp.json();
+    const updates = await chatClient(
+      null, currentData,
+      apiSettings.provider || 'claude',
+      apiSettings.key,
+      'generate-notes'
+    );
 
     // Update prep sheet
     if (updates.prepSheet) {
