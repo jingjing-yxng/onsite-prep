@@ -3,6 +3,19 @@
 let currentSlug = null;
 let currentData = null;
 
+// Deep merge utility — recursively merges src into target
+function deepMerge(target, src) {
+  Object.keys(src).forEach(key => {
+    if (src[key] && typeof src[key] === 'object' && !Array.isArray(src[key])
+        && target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+      deepMerge(target[key], src[key]);
+    } else {
+      target[key] = src[key];
+    }
+  });
+  return target;
+}
+
 // ===== INIT =====
 function loadPrep(slug) {
   currentSlug = slug;
@@ -42,6 +55,7 @@ function loadPrep(slug) {
   rebuildSheetNav();
   initScrollSpy();
   updateProgress();
+  loadChatHistory();
 
   // Update flashcard button text
   const flashBtn = document.getElementById('flashcardBtn');
@@ -1122,8 +1136,10 @@ async function sendChat() {
     const updates = await resp.json();
 
     // Show confirmation
-    loadingEl.textContent = updates.chatResponse || 'Done — content updated.';
+    const responseText = updates.chatResponse || 'Done — content updated.';
+    loadingEl.textContent = responseText;
     loadingEl.classList.remove('chat-msg-loading');
+    saveChatHistory('ai', responseText);
 
     // Apply updates (deep merge into currentData, skip chatResponse)
     Object.keys(updates).forEach(key => {
@@ -1160,14 +1176,31 @@ async function sendChat() {
   document.getElementById('chatSendBtn').disabled = false;
 }
 
-function addChatMsg(type, text, extraClass) {
+function addChatMsg(type, text, extraClass, skipSave) {
   const container = document.getElementById('chatMessages');
   const el = document.createElement('div');
   el.className = 'chat-msg chat-msg-' + type + (extraClass ? ' ' + extraClass : '');
   el.textContent = text;
   container.appendChild(el);
   container.scrollTop = container.scrollHeight;
+  // Persist chat messages (skip loading/temp messages)
+  if (!skipSave && !extraClass) saveChatHistory(type, text);
   return el;
+}
+
+function saveChatHistory(type, text) {
+  const key = currentSlug + '-chat';
+  const history = JSON.parse(localStorage.getItem(key) || '[]');
+  history.push({ type, text });
+  // Keep last 50 messages
+  if (history.length > 50) history.splice(0, history.length - 50);
+  localStorage.setItem(key, JSON.stringify(history));
+}
+
+function loadChatHistory() {
+  const key = currentSlug + '-chat';
+  const history = JSON.parse(localStorage.getItem(key) || '[]');
+  history.forEach(msg => addChatMsg(msg.type, msg.text, null, true));
 }
 
 
