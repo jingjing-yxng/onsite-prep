@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>onsite.</title>
+<link rel="stylesheet" href="engine.css">
+</head>
+<body>
+
+<div class="dashboard-wrap">
+
+  <div class="dashboard-header">
+    <div class="dashboard-header-row">
+      <h1>onsite<span>.</span></h1>
+      <div style="display:flex;gap:8px;align-items:center;">
+      <a href="settings.html" class="settings-icon" title="Settings">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M16.2 12.3a1.3 1.3 0 00.26 1.43l.05.05a1.575 1.575 0 11-2.23 2.23l-.05-.05a1.3 1.3 0 00-1.43-.26 1.3 1.3 0 00-.79 1.19v.14a1.575 1.575 0 11-3.15 0v-.07a1.3 1.3 0 00-.85-1.19 1.3 1.3 0 00-1.43.26l-.05.05a1.575 1.575 0 11-2.23-2.23l.05-.05a1.3 1.3 0 00.26-1.43 1.3 1.3 0 00-1.19-.79h-.14a1.575 1.575 0 110-3.15h.07a1.3 1.3 0 001.19-.85 1.3 1.3 0 00-.26-1.43l-.05-.05a1.575 1.575 0 112.23-2.23l.05.05a1.3 1.3 0 001.43.26h.06a1.3 1.3 0 00.79-1.19v-.14a1.575 1.575 0 113.15 0v.07a1.3 1.3 0 00.79 1.19 1.3 1.3 0 001.43-.26l.05-.05a1.575 1.575 0 112.23 2.23l-.05.05a1.3 1.3 0 00-.26 1.43v.06a1.3 1.3 0 001.19.79h.14a1.575 1.575 0 010 3.15h-.07a1.3 1.3 0 00-1.19.79z" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </a>
+      <button class="signout-btn" onclick="signOut()" title="Sign out">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M6.75 15.75H3.75a1.5 1.5 0 01-1.5-1.5V3.75a1.5 1.5 0 011.5-1.5h3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 12.75L15.75 9 12 5.25M6.75 9h9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      </div>
+    </div>
+    <p>Your interview preps, all in one place.</p>
+  </div>
+
+  <div class="dashboard-actions">
+    <button class="dash-btn primary" onclick="toggleNewForm()">+ New Prep</button>
+    <button class="dash-btn" onclick="exportAll()">Export All</button>
+    <label class="dash-btn" style="cursor:pointer;">Import <input type="file" accept=".json" style="display:none;" onchange="importAll(event)"></label>
+  </div>
+
+  <!-- New prep form -->
+  <div class="new-prep-form" id="newPrepForm">
+    <h3>Create New Interview Prep</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Resume</label>
+        <div class="doc-drop" id="npDropResume">
+          <input type="file" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleNewPrepFile(event, 'resume')" style="display:none;" id="npFileResume">
+          <div class="doc-drop-content" id="npDropResumeContent">
+            <span class="doc-drop-label">Drop or upload</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Job Description</label>
+        <div class="doc-drop" id="npDropJD">
+          <input type="file" accept=".pdf,.docx,.doc,.txt,.md" onchange="handleNewPrepFile(event, 'jd')" style="display:none;" id="npFileJD">
+          <div class="doc-drop-content" id="npDropJDContent">
+            <span class="doc-drop-label">Drop or upload</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="form-row" style="align-items:flex-end;">
+      <div class="form-field">
+        <label>Accent Color</label>
+        <div class="color-swatches" id="npColorSwatches">
+          <button class="color-swatch selected" data-color="#00C968" style="background:#00C968;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#4fc3f7" style="background:#4fc3f7;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#00c48c" style="background:#00c48c;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#f0a030" style="background:#f0a030;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#ff6b6b" style="background:#ff6b6b;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#e84393" style="background:#e84393;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#a29bfe" style="background:#a29bfe;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#636e72" style="background:#636e72;" onclick="pickColor(this)"></button>
+        </div>
+        <input type="hidden" id="npColor" value="#00C968">
+      </div>
+      <div class="form-field" style="max-width:160px;">
+        <label>Language</label>
+        <select id="npLangMode" onchange="toggleLangPair()">
+          <option value="mono">English</option>
+          <option value="bilingual">Bilingual</option>
+        </select>
+      </div>
+      <div class="form-field" id="langPairFields" style="display:none;max-width:280px;">
+        <label>&nbsp;</label>
+        <div style="display:flex;gap:8px;">
+          <select id="npLang1" style="flex:1;min-width:0;">
+            <option value="en">English</option>
+            <option value="zh" selected>中文</option>
+            <option value="fr">Fran&#231;ais</option>
+            <option value="es">Espa&#241;ol</option>
+            <option value="de">Deutsch</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="pt">Portugu&#234;s</option>
+            <option value="ar">العربية</option>
+          </select>
+          <select id="npLang2" style="flex:1;min-width:0;">
+            <option value="en" selected>English</option>
+            <option value="zh">中文</option>
+            <option value="fr">Fran&#231;ais</option>
+            <option value="es">Espa&#241;ol</option>
+            <option value="de">Deutsch</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="pt">Portugu&#234;s</option>
+            <option value="ar">العربية</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="dash-btn primary" onclick="createPrep()">Create</button>
+      <button class="dash-btn" onclick="toggleNewForm()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Card grid -->
+  <div class="prep-grid" id="prepGrid"></div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState" style="display:none;">
+    <p>No interview preps yet.</p>
+    <p style="font-size:12px;">Click "New Prep" to get started.</p>
+  </div>
+
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-card">
+    <h3>Delete this prep?</h3>
+    <p id="deleteModalText">This will remove all saved data. This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="dash-btn" onclick="closeDeleteModal()">Cancel</button>
+      <button class="dash-btn danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="gen-overlay" id="genOverlay">
+  <div class="gen-overlay-content">
+    <div class="gen-spinner"></div>
+    <h3 id="genTitle">Building your edge...</h3>
+    <div class="gen-progress-wrap">
+      <div class="gen-progress-track">
+        <div class="gen-progress-fill" id="genProgressFill"></div>
+      </div>
+      <div class="gen-progress-pct" id="genProgressPct">0%</div>
+    </div>
+    <p id="genStatus">Reading through your resume</p>
+  </div>
+</div>
+
+<!-- Document parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+<!-- Auth -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+
+<!-- Data files (for seed access + progress calculation) -->
+<script src="data/kimi.js"></script>
+<script src="data/template.js"></script>
+
+<script>
+  requireAuth();
+  // ===== DASHBOARD LOGIC =====
+
+  function getRegistry() {
+    const raw = localStorage.getItem('interview-prep-registry');
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  function saveRegistry(registry) {
+    localStorage.setItem('interview-prep-registry', JSON.stringify(registry));
+  }
+
+  function slugify(text) {
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  function autoRegisterKimi() {
+    const registry = getRegistry();
+    if (registry.find(r => r.slug === 'kimi')) return;
+    // Don't re-register if user previously deleted it
+    const deleted = JSON.parse(localStorage.getItem('interview-prep-deleted') || '[]');
+    if (deleted.includes('kimi')) return;
+    const hasLegacy = localStorage.getItem('kimi-checklist-v2') || localStorage.getItem('kimi-prep-edits') || localStorage.getItem('kimi-prep-sheet');
+    const hasNew = localStorage.getItem('kimi-checklist') || localStorage.getItem('kimi-edits') || localStorage.getItem('kimi-prep-sheet');
+    if (hasLegacy || hasNew) {
+      const d = window.prepData_kimi;
+      registry.push({
+        slug: 'kimi', companyName: d.meta.companyName, companyNameZh: d.meta.companyNameZh,
+        role: d.meta.role, roleZh: d.meta.roleZh, color: d.meta.color,
+        bilingual: d.bilingual, createdAt: new Date().toISOString()
+      });
+      saveRegistry(registry);
+    }
+  }
+
+  function getChecklistProgress(slug) {
+    let saved = localStorage.getItem(slug + '-checklist');
+    if (!saved && slug === 'kimi') saved = localStorage.getItem('kimi-checklist-v2');
+    if (!saved) return { done: 0, total: 0 };
+    const states = JSON.parse(saved);
+    const done = Object.values(states).filter(Boolean).length;
+    const seed = window['prepData_' + slug];
+    let total = 0;
+    if (seed) { seed.checklist.days.forEach(d => { total += d.items.length; }); }
+    if (total === 0) total = Math.max(Object.keys(states).length, 1);
+    return { done, total };
+  }
+
+  function renderGrid() {
+    const registry = getRegistry();
+    const grid = document.getElementById('prepGrid');
+    const empty = document.getElementById('emptyState');
+    if (registry.length === 0) { grid.innerHTML = ''; empty.style.display = ''; return; }
+    empty.style.display = 'none';
+    grid.innerHTML = registry.map(prep => {
+      const progress = getChecklistProgress(prep.slug);
+      const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+      const color = prep.color || '#00C968';
+      const tags = [];
+      if (prep.bilingual) tags.push('Bilingual');
+      if (window['prepData_' + prep.slug]) tags.push('Seed');
+      return `<div class="prep-card" onclick="openPrep('${prep.slug}')">
+        <div class="card-accent" style="background:${color};"></div>
+        <button class="card-delete" onclick="event.stopPropagation(); deletePrep('${prep.slug}')" title="Delete">&times;</button>
+        <div class="card-company">${prep.companyName}</div>
+        <div class="card-role">${prep.role}${prep.roleZh ? ' · ' + prep.roleZh : ''}</div>
+        ${tags.length ? `<div class="card-meta">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : ''}
+        <div class="card-progress">
+          <div class="card-progress-track"><div class="card-progress-fill" style="width:${pct}%; background:${color};"></div></div>
+          <span class="card-progress-text">${pct}%</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function openPrep(slug) { window.location.href = 'app.html?prep=' + encodeURIComponent(slug); }
+
+  let pendingDeleteSlug = null;
+
+  function deletePrep(slug) {
+    pendingDeleteSlug = slug;
+    const registry = getRegistry();
+    const prep = registry.find(r => r.slug === slug);
+    const name = prep ? prep.companyName : slug;
+    document.getElementById('deleteModalText').textContent = `This will permanently remove "${name}" and all its saved data.`;
+    document.getElementById('deleteModal').classList.add('active');
+    document.getElementById('deleteConfirmBtn').onclick = confirmDelete;
+  }
+
+  function confirmDelete() {
+    if (!pendingDeleteSlug) return;
+    let registry = getRegistry();
+    registry = registry.filter(r => r.slug !== pendingDeleteSlug);
+    saveRegistry(registry);
+    [pendingDeleteSlug + '-content', pendingDeleteSlug + '-checklist', pendingDeleteSlug + '-edits', pendingDeleteSlug + '-prep-sheet', pendingDeleteSlug + '-documents'].forEach(k => localStorage.removeItem(k));
+    // Track deletion so auto-register doesn't bring it back
+    const deleted = JSON.parse(localStorage.getItem('interview-prep-deleted') || '[]');
+    if (!deleted.includes(pendingDeleteSlug)) { deleted.push(pendingDeleteSlug); localStorage.setItem('interview-prep-deleted', JSON.stringify(deleted)); }
+    pendingDeleteSlug = null;
+    closeDeleteModal();
+    renderGrid();
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+    pendingDeleteSlug = null;
+  }
+
+  function toggleNewForm() {
+    const form = document.getElementById('newPrepForm');
+    form.classList.toggle('active');
+    // no auto-focus needed
+  }
+
+  async function createPrep() {
+    if (!npFiles.jd) { alert('Please upload a job description.'); return; }
+    if (!npFiles.resume) { alert('Please upload your resume.'); return; }
+
+    const color = document.getElementById('npColor').value;
+    const langMode = document.getElementById('npLangMode').value;
+    const bilingual = langMode === 'bilingual';
+    const languages = bilingual
+      ? [document.getElementById('npLang1').value, document.getElementById('npLang2').value]
+      : ['en'];
+
+    // Check for API key
+    const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+    const hasApiKey = apiSettings.key && apiSettings.key.length > 5;
+
+    if (!hasApiKey) {
+      alert('Please add your AI API key in Settings first.');
+      window.location.href = 'settings.html';
+      return;
+    }
+
+    // Show loading
+    showGenOverlay('Building your edge...', 'Reading through your resume');
+    let ticker;
+
+    try {
+      // Extract text from files
+      const resumeText = await extractText(npFiles.resume);
+      updateGenProgress(15, 'Parsing the job description');
+
+      const jdText = await extractText(npFiles.jd);
+      updateGenProgress(30, 'Crafting your personalized prep materials');
+
+      // Slow-tick progress while waiting for AI
+      const genMsgs = [
+        [38, 'Analyzing your experience and the role'],
+        [46, 'Generating tailored interview questions'],
+        [54, 'Researching the company'],
+        [62, 'Building your strength profile'],
+        [68, 'Writing your pitch']
+      ];
+      let msgIdx = 0;
+      ticker = setInterval(() => {
+        if (msgIdx < genMsgs.length) {
+          updateGenProgress(genMsgs[msgIdx][0], genMsgs[msgIdx][1]);
+          msgIdx++;
+        }
+      }, 4000);
+
+      // Call the API
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resumeText,
+          jdText,
+          provider: apiSettings.provider || 'claude',
+          apiKey: apiSettings.key,
+          bilingual,
+          languages
+        })
+      });
+      clearInterval(ticker);
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `API returned ${resp.status}`);
+      }
+
+      updateGenProgress(75, 'Putting it all together');
+      const aiData = await resp.json();
+
+      // Build the prep data object
+      const slug = slugify(aiData.meta?.companyName || 'prep') + '-' + Date.now().toString(36);
+
+      const prepData = {
+        meta: {
+          slug,
+          companyName: aiData.meta?.companyName || 'Interview Prep',
+          companyNameZh: aiData.meta?.companyNameZh || '',
+          role: aiData.meta?.role || 'Position',
+          roleZh: aiData.meta?.roleZh || '',
+          color,
+          sidebarTitle: aiData.meta?.sidebarTitle || (aiData.meta?.companyName + ' <span>Prep</span>'),
+          sidebarSub: aiData.meta?.sidebarSub || aiData.meta?.role
+        },
+        bilingual,
+        languages,
+        pitch: aiData.pitch || {},
+        strengths: aiData.strengths || {},
+        questions: aiData.questions || { categories: [] },
+        company: aiData.company || { en: { rows: [] } },
+        askThem: aiData.askThem || { en: [] },
+        sensitive: aiData.sensitive || { en: { title: '', context: '', script: '', do_text: '', dont_text: '', do_label: 'Do', dont_label: "Don't" } },
+        checklist: aiData.checklist || { days: [] },
+        flashcards: aiData.flashcards || [],
+        prepSheet: aiData.prepSheet || { title: aiData.meta?.companyName + ' Interview Prep Sheet', cards: [] }
+      };
+
+      // Save everything
+      localStorage.setItem(slug + '-content', JSON.stringify(prepData));
+
+      const docs = {};
+      if (npFiles.resume) docs.resume = npFiles.resume;
+      if (npFiles.jd) docs.jd = npFiles.jd;
+      localStorage.setItem(slug + '-documents', JSON.stringify(docs));
+
+      const registry = getRegistry();
+      registry.push({
+        slug,
+        companyName: prepData.meta.companyName,
+        companyNameZh: prepData.meta.companyNameZh,
+        role: prepData.meta.role,
+        roleZh: prepData.meta.roleZh,
+        color, bilingual,
+        createdAt: new Date().toISOString()
+      });
+      saveRegistry(registry);
+
+      updateGenProgress(100, 'You\'re all set — opening your prep kit');
+      await new Promise(r => setTimeout(r, 600));
+      hideGenOverlay();
+      resetNewPrepForm();
+      toggleNewForm();
+      renderGrid();
+
+      // Go directly to the new prep
+      window.location.href = 'app.html?prep=' + encodeURIComponent(slug);
+
+    } catch (err) {
+      if (ticker) clearInterval(ticker);
+      hideGenOverlay();
+      alert('Generation failed: ' + err.message + '\n\nCreating a blank prep instead.');
+      createBlankPrep(color, bilingual, languages);
+    }
+  }
+
+  // Fallback: create blank prep without AI
+  function createBlankPrep(color, bilingual, languages) {
+    const jdName = npFiles.jd?.name?.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ') || 'New Prep';
+    const slug = slugify(jdName) + '-' + Date.now().toString(36);
+    const template = JSON.parse(JSON.stringify(window.prepData_template));
+    template.meta.slug = slug;
+    template.meta.companyName = jdName;
+    template.meta.color = color;
+    template.meta.sidebarTitle = jdName + ' <span>Prep</span>';
+    template.bilingual = bilingual;
+    template.languages = languages;
+    template.prepSheet.title = jdName + ' Interview Prep Sheet';
+    localStorage.setItem(slug + '-content', JSON.stringify(template));
+    const docs = {};
+    if (npFiles.resume) docs.resume = npFiles.resume;
+    if (npFiles.jd) docs.jd = npFiles.jd;
+    localStorage.setItem(slug + '-documents', JSON.stringify(docs));
+    const registry = getRegistry();
+    registry.push({ slug, companyName: jdName, companyNameZh: '', role: 'Position', roleZh: '', color, bilingual, createdAt: new Date().toISOString() });
+    saveRegistry(registry);
+    resetNewPrepForm();
+    toggleNewForm(); renderGrid();
+  }
+
+  // ===== TEXT EXTRACTION =====
+  async function extractText(fileData) {
+    if (fileData.encoding === 'text') return fileData.content;
+
+    const ext = fileData.name.split('.').pop().toLowerCase();
+    const base64 = fileData.content.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    if (ext === 'pdf') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    }
+
+    if (ext === 'docx' || ext === 'doc') {
+      const result = await mammoth.extractRawText({ arrayBuffer: bytes.buffer });
+      return result.value;
+    }
+
+    // Fallback: try as text
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ===== LOADING OVERLAY =====
+  function showGenOverlay(title, status) {
+    document.getElementById('genTitle').textContent = title;
+    document.getElementById('genStatus').textContent = status;
+    document.getElementById('genProgressFill').style.width = '0%';
+    document.getElementById('genProgressPct').textContent = '0%';
+    document.getElementById('genOverlay').classList.add('active');
+  }
+  function updateGenProgress(pct, status) {
+    document.getElementById('genProgressFill').style.width = pct + '%';
+    document.getElementById('genProgressPct').textContent = pct + '%';
+    if (status) document.getElementById('genStatus').textContent = status;
+  }
+  function updateGenStatus(status) {
+    document.getElementById('genStatus').textContent = status;
+  }
+  function hideGenOverlay() {
+    document.getElementById('genOverlay').classList.remove('active');
+  }
+
+  function exportAll() {
+    const registry = getRegistry();
+    const exported = { registry, data: {} };
+    registry.forEach(prep => {
+      exported.data[prep.slug] = {};
+      ['content', 'checklist', 'edits', 'prep-sheet', 'documents'].forEach(key => {
+        const val = localStorage.getItem(prep.slug + '-' + key);
+        if (val) exported.data[prep.slug][key] = val;
+      });
+      if (prep.slug === 'kimi') {
+        ['kimi-checklist-v2', 'kimi-prep-edits', 'kimi-prep-sheet'].forEach(key => {
+          const val = localStorage.getItem(key);
+          if (val) exported.data[prep.slug]['legacy-' + key] = val;
+        });
+      }
+    });
+    const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'interview-prep-export-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function importAll(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!imported.registry || !imported.data) { alert('Invalid import file.'); return; }
+        const existing = getRegistry();
+        const existingSlugs = new Set(existing.map(r => r.slug));
+        imported.registry.forEach(prep => { if (!existingSlugs.has(prep.slug)) existing.push(prep); });
+        saveRegistry(existing);
+        Object.keys(imported.data).forEach(slug => {
+          Object.keys(imported.data[slug]).forEach(key => {
+            if (key.startsWith('legacy-')) localStorage.setItem(key.replace('legacy-', ''), imported.data[slug][key]);
+            else localStorage.setItem(slug + '-' + key, imported.data[slug][key]);
+          });
+        });
+        renderGrid(); alert('Import successful!');
+      } catch (err) { alert('Failed to import: ' + err.message); }
+    };
+    reader.readAsText(file); event.target.value = '';
+  }
+
+  // ===== NEW PREP FILE UPLOADS =====
+  const npFiles = { resume: null, jd: null };
+
+  function initNewPrepDropZones() {
+    ['resume', 'jd'].forEach(type => {
+      const dropId = type === 'resume' ? 'npDropResume' : 'npDropJD';
+      const fileId = type === 'resume' ? 'npFileResume' : 'npFileJD';
+      const drop = document.getElementById(dropId);
+      const input = document.getElementById(fileId);
+      drop.addEventListener('click', (e) => { if (!e.target.closest('.doc-file-remove')) input.click(); });
+      drop.addEventListener('dragenter', (e) => { e.preventDefault(); drop.classList.add('drag-over'); });
+      drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag-over'); });
+      drop.addEventListener('dragleave', () => { drop.classList.remove('drag-over'); });
+      drop.addEventListener('drop', (e) => {
+        e.preventDefault(); drop.classList.remove('drag-over');
+        if (e.dataTransfer.files[0]) processNewPrepFile(e.dataTransfer.files[0], type);
+      });
+    });
+  }
+
+  function handleNewPrepFile(event, type) {
+    if (event.target.files[0]) processNewPrepFile(event.target.files[0], type);
+    event.target.value = '';
+  }
+
+  function processNewPrepFile(file, type) {
+    if (file.size > 10 * 1024 * 1024) { alert('File too large (max 10MB).'); return; }
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    const validExts = ['.pdf', '.docx', '.doc', '.txt', '.md'];
+    if (!validExts.includes(ext)) { alert('Unsupported file type. Use PDF, DOCX, TXT, or MD.'); return; }
+    const reader = new FileReader();
+    if (ext === '.txt' || ext === '.md') {
+      reader.onload = (e) => { storeNewPrepFile(type, file, 'text', e.target.result); };
+      reader.readAsText(file);
+    } else {
+      reader.onload = (e) => { storeNewPrepFile(type, file, 'base64', e.target.result); };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  function storeNewPrepFile(type, file, encoding, content) {
+    npFiles[type] = { name: file.name, size: file.size, mimeType: file.type, encoding, content };
+    const dropId = type === 'resume' ? 'npDropResume' : 'npDropJD';
+    const contentId = type === 'resume' ? 'npDropResumeContent' : 'npDropJDContent';
+    document.getElementById(dropId).classList.add('has-file');
+    const sizeStr = file.size < 1024 ? file.size + ' B' : file.size < 1048576 ? Math.round(file.size / 1024) + ' KB' : (file.size / 1048576).toFixed(1) + ' MB';
+    document.getElementById(contentId).innerHTML = `<div class="doc-file-info">
+      <span class="doc-file-name" title="${file.name}">${file.name}</span>
+      <span class="doc-file-size">${sizeStr}</span>
+      <button class="doc-file-remove" onclick="event.stopPropagation(); removeNewPrepFile('${type}')" title="Remove">&times;</button>
+    </div>`;
+  }
+
+  function removeNewPrepFile(type) {
+    npFiles[type] = null;
+    const dropId = type === 'resume' ? 'npDropResume' : 'npDropJD';
+    const contentId = type === 'resume' ? 'npDropResumeContent' : 'npDropJDContent';
+    document.getElementById(dropId).classList.remove('has-file');
+    document.getElementById(contentId).innerHTML = '<span class="doc-drop-label">Drop or upload</span>';
+  }
+
+  function toggleLangPair() {
+    document.getElementById('langPairFields').style.display =
+      document.getElementById('npLangMode').value === 'bilingual' ? '' : 'none';
+  }
+
+  function pickColor(btn) {
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('npColor').value = btn.getAttribute('data-color');
+  }
+
+  function resetNewPrepForm() {
+    document.getElementById('npColor').value = '#00C968';
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    const def = document.querySelector('.color-swatch[data-color="#00C968"]');
+    if (def) def.classList.add('selected');
+    document.getElementById('npLangMode').value = 'mono';
+    document.getElementById('npLang1').value = 'zh';
+    document.getElementById('npLang2').value = 'en';
+    document.getElementById('langPairFields').style.display = 'none';
+    removeNewPrepFile('resume');
+    removeNewPrepFile('jd');
+  }
+
+  // INIT
+  autoRegisterKimi();
+  renderGrid();
+  initNewPrepDropZones();
+</script>
+
+</body>
+</html>

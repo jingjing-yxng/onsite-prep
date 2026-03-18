@@ -26,7 +26,7 @@ async function requireAuth() {
 
   await initAuth();
   if (!auth.currentUser) {
-    window.location.href = 'login.html';
+    window.location.href = 'index.html';
   }
 }
 
@@ -35,7 +35,7 @@ async function signInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   try {
     await auth.signInWithPopup(provider);
-    window.location.href = 'index.html';
+    window.location.href = 'dashboard.html';
   } catch (e) {
     if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
       // User closed the popup, do nothing
@@ -48,5 +48,5 @@ async function signInWithGoogle() {
 async function signOut() {
   if (!auth) return;
   await auth.signOut();
-  window.location.href = 'login.html';
+  window.location.href = 'index.html';
 }

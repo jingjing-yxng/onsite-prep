@@ -20,7 +20,7 @@ function loadPrep(slug) {
   }
 
   if (!currentData) {
-    window.location.href = 'index.html';
+    window.location.href = 'dashboard.html';
     return;
   }
 
