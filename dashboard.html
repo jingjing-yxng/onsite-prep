@@ -183,6 +183,10 @@
         <span class="gen-step-check">&#10003;</span>
       </div>
     </div>
+    <div class="gen-progress-wrap" id="genProgressWrap" style="display:none;">
+      <div class="gen-progress-track"><div class="gen-progress-fill" id="genProgressFill"></div></div>
+      <div class="gen-progress-label" id="genProgressLabel">0%</div>
+    </div>
   </div>
 </div>
 
@@ -354,27 +358,48 @@
       completeGenStep('jd');
 
       // Step 3+: Tick through AI steps while waiting
-      // Spread steps across ~35 seconds so "finalize" doesn't sit forever
       activateGenStep('pitch');
       const aiSteps = [
-        { name: 'pitch', delay: 3000 },
-        { name: 'strengths', delay: 5000 },
-        { name: 'questions', delay: 7000 },
-        { name: 'company', delay: 8000 },
+        { name: 'pitch', delay: 4500 },
+        { name: 'strengths', delay: 6000 },
+        { name: 'questions', delay: 8000 },
+        { name: 'company', delay: 9000 },
         { name: 'finalize', delay: 10000 }
       ];
       let stepIdx = 0;
+      let progressTimer = null;
       function tickNextStep() {
         if (stepIdx < aiSteps.length) {
           completeGenStep(aiSteps[stepIdx].name);
           stepIdx++;
           if (stepIdx < aiSteps.length) {
             activateGenStep(aiSteps[stepIdx].name);
-            ticker = setTimeout(tickNextStep, aiSteps[stepIdx].delay);
+            if (aiSteps[stepIdx].name === 'finalize') {
+              // Show progress bar when finalize starts
+              showFinalizeProgress();
+            } else {
+              ticker = setTimeout(tickNextStep, aiSteps[stepIdx].delay);
+            }
           }
         }
       }
       ticker = setTimeout(tickNextStep, aiSteps[0].delay);
+
+      function showFinalizeProgress() {
+        const wrap = document.getElementById('genProgressWrap');
+        const fill = document.getElementById('genProgressFill');
+        const label = document.getElementById('genProgressLabel');
+        wrap.style.display = 'block';
+        let pct = 0;
+        progressTimer = setInterval(() => {
+          // Slow asymptotic climb — never reaches 100 until API returns
+          const remaining = 95 - pct;
+          pct += remaining * 0.04;
+          pct = Math.min(pct, 95);
+          fill.style.width = Math.round(pct) + '%';
+          label.textContent = Math.round(pct) + '%';
+        }, 500);
+      }
 
       // Call the LLM directly from browser (no Vercel timeout issues)
       const aiData = await generatePrepClient(
@@ -384,6 +409,13 @@
         bilingual, languages
       );
       clearTimeout(ticker);
+      if (progressTimer) clearInterval(progressTimer);
+
+      // Snap progress to 100%
+      const fill = document.getElementById('genProgressFill');
+      const label = document.getElementById('genProgressLabel');
+      fill.style.width = '100%';
+      label.textContent = '100%';
 
       // Complete all remaining steps
       completeAllGenSteps();
@@ -437,6 +469,8 @@
       });
       saveRegistry(registry);
 
+      if (titleCycleTimer) { clearInterval(titleCycleTimer); titleCycleTimer = null; }
+      document.getElementById('genTitle').style.opacity = '1';
       document.getElementById('genTitle').textContent = 'You\'re all set.';
       await new Promise(r => setTimeout(r, 800));
       hideGenOverlay();
@@ -449,6 +483,7 @@
 
     } catch (err) {
       if (ticker) clearTimeout(ticker);
+      if (progressTimer) clearInterval(progressTimer);
       hideGenOverlay();
       console.error('Generation error:', err);
       const retry = confirm('Generation failed: ' + err.message + '\n\nClick OK to create a blank prep, or Cancel to try again.');
@@ -516,17 +551,46 @@
   // ===== LOADING OVERLAY =====
   let elapsedTimer = null;
   let elapsedStart = 0;
+  let titleCycleTimer = null;
+
+  const GEN_TITLES = [
+    'Building your edge...',
+    'Analyzing your experience...',
+    'Tailoring your prep...',
+    'Connecting the dots...',
+    'Finding your strengths...',
+    'Mapping to the role...',
+    'Crafting your strategy...',
+    'Almost there...'
+  ];
 
   function showGenOverlay(title) {
-    document.getElementById('genTitle').textContent = title;
+    const titleEl = document.getElementById('genTitle');
+    titleEl.textContent = title;
     document.querySelectorAll('.gen-step').forEach(el => {
       el.classList.remove('active', 'done');
-      // Remove any existing elapsed element
       const old = el.querySelector('.gen-elapsed');
       if (old) old.remove();
     });
+    // Hide progress bar
+    document.getElementById('genProgressWrap').style.display = 'none';
+    document.getElementById('genProgressFill').style.width = '0%';
+    document.getElementById('genProgressLabel').textContent = '0%';
     document.getElementById('genOverlay').classList.add('active');
+    document.body.classList.add('overlay-active');
     elapsedStart = Date.now();
+
+    // Cycle title text
+    let titleIdx = 0;
+    if (titleCycleTimer) clearInterval(titleCycleTimer);
+    titleCycleTimer = setInterval(() => {
+      titleIdx = (titleIdx + 1) % GEN_TITLES.length;
+      titleEl.style.opacity = '0';
+      setTimeout(() => {
+        titleEl.textContent = GEN_TITLES[titleIdx];
+        titleEl.style.opacity = '1';
+      }, 300);
+    }, 5000);
   }
 
   function activateGenStep(stepName) {
@@ -583,7 +647,9 @@
 
   function hideGenOverlay() {
     if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+    if (titleCycleTimer) { clearInterval(titleCycleTimer); titleCycleTimer = null; }
     document.getElementById('genOverlay').classList.remove('active');
+    document.body.classList.remove('overlay-active');
   }
 
   function exportAll() {
