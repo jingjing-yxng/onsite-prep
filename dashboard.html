@@ -357,65 +357,27 @@
       const jdText = await extractText(npFiles.jd);
       completeGenStep('jd');
 
-      // Step 3+: Tick through AI steps while waiting
+      // Step 3+: Run 4 parallel API calls, update steps as each completes
       activateGenStep('pitch');
-      const aiSteps = [
-        { name: 'pitch', delay: 4500 },
-        { name: 'strengths', delay: 6000 },
-        { name: 'questions', delay: 8000 },
-        { name: 'company', delay: 9000 },
-        { name: 'finalize', delay: 10000 }
-      ];
-      let stepIdx = 0;
-      let progressTimer = null;
-      function tickNextStep() {
-        if (stepIdx < aiSteps.length) {
-          completeGenStep(aiSteps[stepIdx].name);
-          stepIdx++;
-          if (stepIdx < aiSteps.length) {
-            activateGenStep(aiSteps[stepIdx].name);
-            if (aiSteps[stepIdx].name === 'finalize') {
-              // Show progress bar when finalize starts
-              showFinalizeProgress();
-            } else {
-              ticker = setTimeout(tickNextStep, aiSteps[stepIdx].delay);
-            }
-          }
+
+      // Track which steps complete from the parallel calls
+      const stepMap = { pitch: 'strengths', strengths: 'questions', questions: 'company', company: 'finalize' };
+      function onStepDone(stepName) {
+        completeGenStep(stepName);
+        // Activate the next step if there is one
+        if (stepMap[stepName]) {
+          activateGenStep(stepMap[stepName]);
         }
       }
-      ticker = setTimeout(tickNextStep, aiSteps[0].delay);
 
-      function showFinalizeProgress() {
-        const wrap = document.getElementById('genProgressWrap');
-        const fill = document.getElementById('genProgressFill');
-        const label = document.getElementById('genProgressLabel');
-        wrap.style.display = 'block';
-        let pct = 0;
-        progressTimer = setInterval(() => {
-          // Slow asymptotic climb — never reaches 100 until API returns
-          const remaining = 95 - pct;
-          pct += remaining * 0.04;
-          pct = Math.min(pct, 95);
-          fill.style.width = Math.round(pct) + '%';
-          label.textContent = Math.round(pct) + '%';
-        }, 500);
-      }
-
-      // Call the LLM directly from browser (no Vercel timeout issues)
+      // 4 parallel LLM calls with real-time step updates
       const aiData = await generatePrepClient(
         resumeText, jdText,
         apiSettings.provider || 'claude',
         apiSettings.key,
-        bilingual, languages
+        bilingual, languages,
+        onStepDone
       );
-      clearTimeout(ticker);
-      if (progressTimer) clearInterval(progressTimer);
-
-      // Snap progress to 100%
-      const fill = document.getElementById('genProgressFill');
-      const label = document.getElementById('genProgressLabel');
-      fill.style.width = '100%';
-      label.textContent = '100%';
 
       // Complete all remaining steps
       completeAllGenSteps();
