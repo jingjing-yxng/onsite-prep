@@ -1128,7 +1128,12 @@ async function sendChat() {
     // Apply updates (deep merge into currentData, skip chatResponse)
     Object.keys(updates).forEach(key => {
       if (key === 'chatResponse') return;
-      currentData[key] = updates[key];
+      if (currentData[key] && typeof currentData[key] === 'object' && !Array.isArray(currentData[key])
+          && typeof updates[key] === 'object' && !Array.isArray(updates[key])) {
+        deepMerge(currentData[key], updates[key]);
+      } else {
+        currentData[key] = updates[key];
+      }
     });
 
     // Save and re-render
