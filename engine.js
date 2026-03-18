@@ -324,6 +324,7 @@ function renderPrepSheet() {
 
   let html = `<div class="prep-sheet-title" contenteditable="true">${ps.title}</div>
     <div class="prep-sheet-subtitle">Your working doc. Type <strong>/</strong> for formatting commands. Select text for bold/italic/underline.</div>
+    <button class="gen-notes-btn" id="genNotesBtn" onclick="generateNotesFromChecklist()">Generate notes from checklist</button>
     <hr class="ps-divider">`;
 
   ps.cards.forEach(card => {
@@ -1079,6 +1080,147 @@ function getChecklistProgress(slug) {
   if (total === 0) total = Object.keys(states).length;
   return { done, total };
 }
+
+// ===== SIDEBAR CHAT =====
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+  if (!apiSettings.key) {
+    addChatMsg('ai', 'Please add your API key in Settings first.');
+    return;
+  }
+
+  // Show user message
+  addChatMsg('user', msg);
+  input.value = '';
+
+  // Show loading
+  const loadingEl = addChatMsg('ai', 'Thinking...', 'chat-msg-loading');
+  document.getElementById('chatSendBtn').disabled = true;
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: msg,
+        currentData: currentData,
+        provider: apiSettings.provider || 'claude',
+        apiKey: apiSettings.key
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(err.error || 'API error');
+    }
+
+    const updates = await resp.json();
+
+    // Show confirmation
+    loadingEl.textContent = updates.chatResponse || 'Done — content updated.';
+    loadingEl.classList.remove('chat-msg-loading');
+
+    // Apply updates (deep merge into currentData, skip chatResponse)
+    Object.keys(updates).forEach(key => {
+      if (key === 'chatResponse') return;
+      currentData[key] = updates[key];
+    });
+
+    // Save and re-render
+    localStorage.setItem(currentSlug + '-content', JSON.stringify(currentData));
+
+    // Clear any cached edits so re-render uses new data
+    localStorage.removeItem(currentSlug + '-edits');
+
+    // Re-render affected sections
+    renderGeneralPrep();
+    renderPrepSheet();
+    initEditable();
+    loadChecklist();
+    loadPrepSheet();
+    initAddButtons();
+    rebuildSheetNav();
+    updateProgress();
+
+  } catch (err) {
+    loadingEl.textContent = 'Error: ' + err.message;
+    loadingEl.classList.remove('chat-msg-loading');
+  }
+
+  document.getElementById('chatSendBtn').disabled = false;
+}
+
+function addChatMsg(type, text, extraClass) {
+  const container = document.getElementById('chatMessages');
+  const el = document.createElement('div');
+  el.className = 'chat-msg chat-msg-' + type + (extraClass ? ' ' + extraClass : '');
+  el.textContent = text;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+
+// ===== GENERATE NOTES FROM CHECKLIST =====
+
+async function generateNotesFromChecklist() {
+  const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+  if (!apiSettings.key) {
+    alert('Please add your API key in Settings first.');
+    return;
+  }
+
+  const btn = document.getElementById('genNotesBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="btn-spinner"></span> Generating...';
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'generate-notes',
+        currentData: currentData,
+        provider: apiSettings.provider || 'claude',
+        apiKey: apiSettings.key
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(err.error || 'API error');
+    }
+
+    const updates = await resp.json();
+
+    // Update prep sheet
+    if (updates.prepSheet) {
+      currentData.prepSheet = updates.prepSheet;
+      localStorage.setItem(currentSlug + '-content', JSON.stringify(currentData));
+      localStorage.removeItem(currentSlug + '-prep-sheet');
+
+      // Re-render prep sheet
+      renderPrepSheet();
+      loadPrepSheet();
+      initAddButtons();
+      rebuildSheetNav();
+    }
+
+    addChatMsg('ai', updates.chatResponse || 'Generated notes from your checklist.');
+
+  } catch (err) {
+    alert('Generation failed: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Generate notes from checklist';
+}
+
 
 // ===== AUTO-INIT =====
 (function() {
