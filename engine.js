@@ -18,6 +18,38 @@ function deepMerge(target, src) {
   return target;
 }
 
+// Sanitize dot-bullet text into proper <ul><li> HTML
+function sanitizeBullets(container) {
+  // Find all elements that might contain dot-bullets rendered as text
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+  const editable = container.querySelectorAll('[contenteditable="true"], .qa-answer-inner, .ps-editor, .pitch-card p, .controversy-card > p, .script-box, .do-col p, .dont-col p, .company-row > div, .strength-row > div, .gap-card p, .ask-item');
+  editable.forEach(el => {
+    const html = el.innerHTML;
+    // Check if this element has dot-bullet patterns but no <ul>/<li> already handling them
+    if (/(?:^|<br\s*\/?>)\s*[•·‣▪]\s/i.test(html) && !/<li>/i.test(html)) {
+      // Split on <br> tags, convert dot-prefixed lines to <li>, wrap consecutive runs in <ul>
+      const lines = html.split(/<br\s*\/?>/gi);
+      let result = '';
+      let inList = false;
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        const bulletMatch = trimmed.match(/^[•·‣▪]\s*(.*)/);
+        if (bulletMatch) {
+          if (!inList) { result += '<ul>'; inList = true; }
+          result += '<li>' + bulletMatch[1] + '</li>';
+        } else {
+          if (inList) { result += '</ul>'; inList = false; }
+          if (trimmed) result += trimmed + '<br>';
+        }
+      });
+      if (inList) result += '</ul>';
+      // Clean trailing <br>
+      result = result.replace(/<br>$/, '');
+      if (result !== html) el.innerHTML = result;
+    }
+  });
+}
+
 // ===== INIT =====
 function loadPrep(slug) {
   currentSlug = slug;
@@ -343,6 +375,7 @@ function renderGeneralPrep() {
   html += '</section>';
 
   container.innerHTML = html;
+  sanitizeBullets(container);
 
   // Count total checklist items
   window.TOTAL_CHECKS = 0;
@@ -386,6 +419,7 @@ function renderPrepSheet() {
   });
 
   container.innerHTML = html;
+  sanitizeBullets(container);
 
   // Wire up title blur → save
   container.querySelectorAll('.ps-section-title, .prep-sheet-title').forEach(el => {
@@ -579,6 +613,9 @@ function loadEdits() {
         el.innerHTML = edits[i];
       }
     });
+    // Sanitize any dot-bullets in restored edits
+    sanitizeBullets(document.getElementById('generalPrepContent'));
+    sanitizeBullets(document.getElementById('prepSheetContent'));
   }
 }
 

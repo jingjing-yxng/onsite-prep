@@ -357,32 +357,52 @@
       const jdText = await extractText(npFiles.jd);
       completeGenStep('jd');
 
-      // Step 3+: Run 4 parallel API calls, update steps as each completes
+      // Cosmetic steps: tick every 5 seconds regardless of API progress
       activateGenStep('pitch');
-
-      // Track which steps complete from the parallel calls
-      const stepMap = { pitch: 'strengths', strengths: 'questions', questions: 'company', company: 'finalize' };
-      function onStepDone(stepName) {
-        completeGenStep(stepName);
-        // Activate the next step if there is one
-        if (stepMap[stepName]) {
-          activateGenStep(stepMap[stepName]);
+      const cosmeticSteps = ['pitch', 'strengths', 'questions', 'company'];
+      let cosmeticIdx = 0;
+      let progressTimer = null;
+      ticker = setInterval(() => {
+        if (cosmeticIdx < cosmeticSteps.length) {
+          completeGenStep(cosmeticSteps[cosmeticIdx]);
+          cosmeticIdx++;
+          if (cosmeticIdx < cosmeticSteps.length) {
+            activateGenStep(cosmeticSteps[cosmeticIdx]);
+          } else {
+            // All cosmetic steps done — show finalize with progress bar
+            activateGenStep('finalize');
+            const wrap = document.getElementById('genProgressWrap');
+            const fill = document.getElementById('genProgressFill');
+            const pLabel = document.getElementById('genProgressLabel');
+            wrap.style.display = 'block';
+            let pct = 0;
+            progressTimer = setInterval(() => {
+              const remaining = 95 - pct;
+              pct += remaining * 0.03;
+              pct = Math.min(pct, 95);
+              fill.style.width = Math.round(pct) + '%';
+              pLabel.textContent = Math.round(pct) + '%';
+            }, 400);
+          }
         }
-      }
+      }, 5000);
 
-      // 4 parallel LLM calls with real-time step updates
+      // Actual API calls run in parallel (independent of cosmetic steps)
       const aiData = await generatePrepClient(
         resumeText, jdText,
         apiSettings.provider || 'claude',
         apiSettings.key,
-        bilingual, languages,
-        onStepDone
+        bilingual, languages
       );
+      clearInterval(ticker);
+      if (progressTimer) clearInterval(progressTimer);
 
-      // Complete all remaining steps
+      // Snap everything to done
       completeAllGenSteps();
-      activateGenStep('finalize');
-      completeGenStep('finalize');
+      const fill = document.getElementById('genProgressFill');
+      const pLabel = document.getElementById('genProgressLabel');
+      if (fill) { fill.style.width = '100%'; }
+      if (pLabel) { pLabel.textContent = '100%'; }
 
       // Build the prep data object
       const slug = slugify(aiData.meta?.companyName || 'prep') + '-' + Date.now().toString(36);

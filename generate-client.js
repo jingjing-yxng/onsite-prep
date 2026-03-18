@@ -17,7 +17,7 @@ function extractJSON(text) {
   return null;
 }
 
-async function generatePrepClient(resumeText, jdText, provider, apiKey, bilingual, languages, onStepDone) {
+async function generatePrepClient(resumeText, jdText, provider, apiKey, bilingual, languages) {
   if (provider !== 'claude') {
     // Non-Claude: fall back to single call via proxy
     const result = await callViaProxy(resumeText, jdText, provider, apiKey, bilingual, languages);
@@ -30,7 +30,7 @@ async function generatePrepClient(resumeText, jdText, provider, apiKey, bilingua
     ? `BILINGUAL: Include both "en" and "${l2}" keys for every text field.`
     : `English only. No second language keys.`;
   const context = `RESUME:\n${resumeText.slice(0, 6000)}\n\nJOB DESCRIPTION:\n${jdText.slice(0, 5000)}\n\n${biNote}`;
-  const jsonRule = 'Return ONLY valid JSON, no markdown, no explanation.';
+  const jsonRule = 'Return ONLY valid JSON, no markdown, no explanation. For bullet lists use <ul><li>...</li></ul> — NEVER use bullet dot characters like • or · with <br>.';
 
   // 4 parallel calls, each generating a subset of the prep data
   const calls = [
@@ -39,20 +39,20 @@ async function generatePrepClient(resumeText, jdText, provider, apiKey, bilingua
   "meta": { "companyName": "from JD", "companyNameZh": "${bilingual ? 'Chinese name' : ''}", "role": "from JD", "roleZh": "${bilingual ? 'Chinese' : ''}", "sidebarTitle": "Company <span>x</span> FirstName", "sidebarSub": "Role<br>Company" },
   "pitch": { "en": { "label": "Memorize — say it naturally", "text": "3-4 sentence pitch using SPECIFIC resume achievements for THIS role" }${bilingual ? `, "${l2}": { "label": "...", "text": "natural translation" }` : ''} },
   "strengths": { "en": { "rows": [["JD requirement", "<strong>Company</strong>: specific achievement"], ...6-8 rows], "gaps": [{"title": "Gap: ...", "text": "How to address"}, ...1-2] }${bilingual ? `, "${l2}": { "rows": [...], "gaps": [...] }` : ''} }
-}`).then(r => { if (onStepDone) onStepDone('pitch'); return r; }),
+}`),
 
     // Call 2: Questions + Flashcards
     callClaudeClient(apiKey, `${context}\n\nGenerate a JSON object with ONLY these fields. Questions should be realistic for THIS role. Every answer must cite specific resume evidence. ${jsonRule}\n\n{
   "questions": { "categories": [{ "label": {"en": "A — Category"${bilingual ? `, "${l2}": "..."` : ''}}, "items": [{ "question": {"en": "..."${bilingual ? `, "${l2}": "..."` : ''}}, "answer": {"en": "<ul><li>...</li></ul>"${bilingual ? `, "${l2}": "..."` : ''}} }] }, ...3-4 categories with 2 questions each] },
   "flashcards": [{"en_q": "Q", "${l2}_q": "${bilingual ? 'translated' : ''}", "en_a": "A with resume evidence", "${l2}_a": "${bilingual ? 'translated' : ''}"}, ...6-8 cards]
-}`).then(r => { if (onStepDone) onStepDone('questions'); return r; }),
+}`),
 
     // Call 3: Company + Ask Them + Sensitive
     callClaudeClient(apiKey, `${context}\n\nGenerate a JSON object with ONLY these fields. Company intel must have 7+ rows with SPECIFIC product/team details from JD. ${jsonRule}\n\n{
   "company": { "en": { "rows": [["Label", "Specific detail"], ...7-10 rows covering products, competitors, business model, team, strategy] }${bilingual ? `, "${l2}": { "rows": [...] }` : ''} },
   "askThem": { "en": ["Specific question about the role/company", ...4-5 questions]${bilingual ? `, "${l2}": [...]` : ''} },
   "sensitive": { "en": { "title": "Topic", "context": "Why relevant", "script": "Response", "do_text": "Do", "dont_text": "Avoid", "do_label": "Do", "dont_label": "Don't" }${bilingual ? `, "${l2}": { "title": "", "context": "", "script": "", "do_text": "", "dont_text": "", "do_label": "", "dont_label": "" }` : ''} }
-}`).then(r => { if (onStepDone) onStepDone('company'); return r; }),
+}`),
 
     // Call 4: Checklist + Prep Sheet
     callClaudeClient(apiKey, `${context}\n\nGenerate a JSON object with ONLY these fields. Checklist tasks must be specific and actionable (use real product names, competitor names). ${jsonRule}\n\n{
@@ -62,14 +62,14 @@ async function generatePrepClient(resumeText, jdText, provider, apiKey, bilingua
     {"badge": "Interview Day", "label": {"en": "Morning — Warmup"${bilingual ? `, "${l2}": "..."` : ''}}, "cssClass": "day-of", "priority": "medium", "priorityLabel": "Warmup", "items": [...3 items]}
   ]},
   "prepSheet": { "title": "CompanyName Interview Prep Sheet", "cards": [
-    {"id": "card-1", "title": "Product Deep Dive", "hint": "...", "content": "<b>Product 1</b><br>• ..."${bilingual ? `, "content_${l2}": "translated"` : ''}},
+    {"id": "card-1", "title": "Product Deep Dive", "hint": "...", "content": "<b>Product 1</b><ul><li>...</li></ul>"${bilingual ? `, "content_${l2}": "translated"` : ''}},
     {"id": "card-2", "title": "Why This Company", "hint": "...", "content": "..."${bilingual ? `, "content_${l2}": "..."` : ''}},
     {"id": "card-3", "title": "30-Second Pitch", "hint": "...", "content": "..."${bilingual ? `, "content_${l2}": "..."` : ''}},
     {"id": "card-4", "title": "STAR Stories", "hint": "...", "content": "<b>Story 1</b><br>..."${bilingual ? `, "content_${l2}": "..."` : ''}},
     {"id": "card-5", "title": "Questions to Ask", "hint": "...", "content": "..."${bilingual ? `, "content_${l2}": "..."` : ''}},
     {"id": "card-6", "title": "Scratch Pad", "hint": null, "content": ""}
   ]}
-}`).then(r => { if (onStepDone) onStepDone('finalize'); return r; })
+}`)
   ];
 
   // Run all 4 in parallel
