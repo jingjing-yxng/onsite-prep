@@ -65,13 +65,13 @@
         <label>Accent Color</label>
         <div class="color-swatches" id="npColorSwatches">
           <button class="color-swatch selected" data-color="#00C968" style="background:#00C968;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#4fc3f7" style="background:#4fc3f7;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#00c48c" style="background:#00c48c;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#f0a030" style="background:#f0a030;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#ff6b6b" style="background:#ff6b6b;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#e84393" style="background:#e84393;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#a29bfe" style="background:#a29bfe;" onclick="pickColor(this)"></button>
-          <button class="color-swatch" data-color="#636e72" style="background:#636e72;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#3D8BC2" style="background:#3D8BC2;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#8B5CF6" style="background:#8B5CF6;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#D4A574" style="background:#D4A574;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#E8453C" style="background:#E8453C;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#F5A623" style="background:#F5A623;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#6C6C70" style="background:#6C6C70;" onclick="pickColor(this)"></button>
+          <button class="color-swatch" data-color="#E8E4DD" style="background:#E8E4DD;" onclick="pickColor(this)"></button>
         </div>
         <input type="hidden" id="npColor" value="#00C968">
       </div>
@@ -268,7 +268,7 @@
         <div class="card-accent" style="background:${color};"></div>
         <button class="card-delete" onclick="event.stopPropagation(); deletePrep('${prep.slug}')" title="Delete">&times;</button>
         <div class="card-company">${prep.companyName}</div>
-        <div class="card-role">${prep.role}${prep.roleZh ? ' · ' + prep.roleZh : ''}</div>
+        <div class="card-role">${prep.role}${prep.roleZh ? '<br>' + prep.roleZh : ''}</div>
         ${tags.length ? `<div class="card-meta">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>` : ''}
         <div class="card-progress">
           <div class="card-progress-track"><div class="card-progress-fill" style="width:${pct}%; background:${color};"></div></div>

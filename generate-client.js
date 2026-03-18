@@ -344,6 +344,7 @@ Rules:
 - Every answer must cite SPECIFIC resume experience with real metrics.
 - Generate 3-4 question categories with 2 questions each. At least one category should be product/domain-specific (e.g., "Product & Growth" not just "Behavioral").
 - Company intel MUST have 7-10 rows. Dedicate a separate row to EACH distinct product/platform. Never collapse multiple products into one generic "Products" row.
+- The "sensitive" section MUST have exactly 3 items in the "items" array: (1) a competitor comparison with a NAMED competitor and specific product/market differences, (2) a company-specific controversy or known criticism — real issues like layoffs, lawsuits, failed products, regulatory trouble, or if none are public, the most credible criticism an informed candidate would know about, (3) an industry/external sensitivity only if genuinely relevant to this company's sector. Do NOT default to generic geopolitics unless it specifically affects this company.
 - Checklist items must be actionable and specific — "Try the free tier of [Product X]" not "Research company products." Include specific product names, competitor names, and search terms.
 - Checklist: Day 1 gets 4-5 items, Day 2 gets 4 items, Interview Day gets 3 items.
 - All HTML content uses <strong>, <br>, <ul>, <li>, <i> tags.`;

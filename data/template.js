@@ -120,22 +120,66 @@ window.prepData_template = {
   },
   sensitive: {
     en: {
-      title: "[Sensitive Topic]",
-      context: "[Brief context about why this is sensitive]",
-      script: "[Your neutral, prepared response]",
-      do_text: "[What to emphasize]",
-      dont_text: "[What to avoid]",
-      do_label: "Do",
-      dont_label: "Don\u2019t"
+      items: [
+        {
+          title: "[Competitor: Name]",
+          context: "[How they compare — product differences, market position]",
+          script: "[Your response to 'Why us over them?']",
+          do_text: "[Show you've researched the competitor]",
+          dont_text: "[Don't trash them]",
+          do_label: "Do",
+          dont_label: "Don\u2019t"
+        },
+        {
+          title: "[Company Controversy]",
+          context: "[Known issues — layoffs, lawsuits, product failures, criticism]",
+          script: "[Your neutral, informed response]",
+          do_text: "[Acknowledge and pivot to positives]",
+          dont_text: "[Don't pretend ignorance]",
+          do_label: "Do",
+          dont_label: "Don\u2019t"
+        },
+        {
+          title: "[Industry Sensitivity]",
+          context: "[Geopolitical, regulatory, or market topic if relevant]",
+          script: "[Your balanced response]",
+          do_text: "[Show informed perspective]",
+          dont_text: "[Avoid strong opinions]",
+          do_label: "Do",
+          dont_label: "Don\u2019t"
+        }
+      ]
     },
     zh: {
-      title: "[敏感话题]",
-      context: "[为什么这个话题敏感的背景]",
-      script: "[你准备好的中性回答]",
-      do_text: "[应该强调什么]",
-      dont_text: "[应该避免什么]",
-      do_label: "可以",
-      dont_label: "不要"
+      items: [
+        {
+          title: "[竞争对手：名称]",
+          context: "[对比分析——产品差异、市场定位]",
+          script: "[你的回答：'为什么选择我们而不是他们？']",
+          do_text: "[展示你研究过竞争对手]",
+          dont_text: "[不要贬低对手]",
+          do_label: "可以",
+          dont_label: "不要"
+        },
+        {
+          title: "[公司争议]",
+          context: "[已知问题——裁员、诉讼、产品失败、批评]",
+          script: "[你中立且知情的回答]",
+          do_text: "[承认并转向积极面]",
+          dont_text: "[不要假装不知道]",
+          do_label: "可以",
+          dont_label: "不要"
+        },
+        {
+          title: "[行业敏感话题]",
+          context: "[如相关的地缘政治、监管或市场话题]",
+          script: "[你平衡的回答]",
+          do_text: "[展示知情的视角]",
+          dont_text: "[避免强烈的政治观点]",
+          do_label: "可以",
+          dont_label: "不要"
+        }
+      ]
     }
   },
   checklist: {

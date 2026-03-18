@@ -255,7 +255,7 @@ function renderGeneralPrep() {
   }
   html += `<section id="ask-them">
     <div class="section-header"><div class="section-num">5</div>
-      <h2>Questions to Ask</h2>
+      <h2>${bi ? 'Questions for Your Interviewer &middot; 反问环节' : 'Questions for Your Interviewer'}</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderAskCol('en', d.askThem.en)}
