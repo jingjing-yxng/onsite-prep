@@ -563,6 +563,241 @@ function loadEdits() {
   }
 }
 
+// ===== BILINGUAL SYNC =====
+
+function getPairedPath(path) {
+  const l2 = (currentData.languages && currentData.languages.length > 1)
+    ? currentData.languages.find(l => l !== 'en') || currentData.languages[1] : 'zh';
+  if (path.includes('.en.') || path.includes('.en,')) {
+    return path.replace(/\.en([.\[])/g, '.' + l2 + '$1').replace(/\.en$/, '.' + l2);
+  }
+  if (path.includes('.' + l2 + '.') || path.endsWith('.' + l2)) {
+    return path.replace(new RegExp('\\.' + l2 + '([.\\[])', 'g'), '.en$1').replace(new RegExp('\\.' + l2 + '$'), '.en');
+  }
+  // Handle paths like askThem.en.0 or askThem.zh.0
+  const parts = path.split('.');
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] === 'en') { parts[i] = l2; return parts.join('.'); }
+    if (parts[i] === l2) { parts[i] = 'en'; return parts.join('.'); }
+  }
+  return null;
+}
+
+function getLangFromPath(path) {
+  const l2 = (currentData.languages && currentData.languages.length > 1)
+    ? currentData.languages.find(l => l !== 'en') || currentData.languages[1] : 'zh';
+  const parts = path.split('.');
+  for (const p of parts) {
+    if (p === 'en') return 'en';
+    if (p === l2) return l2;
+  }
+  return null;
+}
+
+function splitSentences(text) {
+  // Split on sentence-ending punctuation, keeping the delimiter with the sentence
+  return text.split(/(?<=[.!?。！？；;])\s*/).filter(s => s.trim().length > 0);
+}
+
+function hasHtmlStructure(el) {
+  return el.querySelector('ul, ol, li, table, br') !== null;
+}
+
+async function handleBilingualSync(el) {
+  const snapshot = el._preEditSnapshot;
+  if (!snapshot) return;
+  el._preEditSnapshot = null;
+
+  const path = snapshot.path;
+  const oldText = snapshot.text;
+  const newText = el.textContent;
+
+  // No change
+  if (oldText === newText) return;
+
+  // Find paired element
+  const pairedPath = getPairedPath(path);
+  if (!pairedPath) return;
+  const pairedEl = document.querySelector(`[data-path="${pairedPath}"]`);
+  if (!pairedEl) return;
+
+  // Check API key
+  const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+  if (!apiSettings.key) {
+    if (!syncToastShown && typeof showToast === 'function') {
+      showToast('Add an API key in Settings to enable auto-sync between languages.', 'info');
+      syncToastShown = true;
+    }
+    return;
+  }
+
+  const fromLang = getLangFromPath(path);
+  const toLang = getLangFromPath(pairedPath);
+  if (!fromLang || !toLang) return;
+
+  // For HTML-rich elements, translate the full block
+  if (hasHtmlStructure(el)) {
+    await syncFullBlock(el, pairedEl, fromLang, toLang, apiSettings);
+    return;
+  }
+
+  // Sentence-level diff
+  const oldSentences = splitSentences(oldText);
+  const newSentences = splitSentences(newText);
+
+  // Find changed sentence indices
+  const changedIndices = [];
+  const changedSentences = [];
+  const maxLen = Math.max(oldSentences.length, newSentences.length);
+  for (let i = 0; i < maxLen; i++) {
+    if ((oldSentences[i] || '') !== (newSentences[i] || '')) {
+      changedIndices.push(i);
+      changedSentences.push(newSentences[i] || '');
+    }
+  }
+
+  if (changedSentences.length === 0) return;
+
+  // Show syncing state
+  syncInProgress = true;
+  pairedEl.classList.add('syncing');
+
+  try {
+    const resp = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sentences: changedSentences,
+        fromLang,
+        toLang,
+        context: newText,
+        provider: apiSettings.provider || 'claude',
+        apiKey: apiSettings.key
+      })
+    });
+
+    if (!resp.ok) throw new Error('Sync failed');
+
+    const data = await resp.json();
+    if (!data.translations || data.translations.length !== changedSentences.length) throw new Error('Bad response');
+
+    // Splice translations into paired element
+    const pairedSentences = splitSentences(pairedEl.textContent);
+
+    // Ensure the paired array is long enough
+    while (pairedSentences.length < newSentences.length) {
+      pairedSentences.push('');
+    }
+    // If new text has fewer sentences, trim paired
+    if (newSentences.length < pairedSentences.length) {
+      pairedSentences.length = newSentences.length;
+    }
+
+    // Apply translations at changed indices
+    changedIndices.forEach((idx, j) => {
+      pairedSentences[idx] = data.translations[j];
+    });
+
+    // Rebuild paired content with highlight marks
+    const highlightedHtml = pairedSentences.map((s, i) => {
+      if (changedIndices.includes(i)) {
+        return `<mark class="change-highlight">${escapeHtml(s)}</mark>`;
+      }
+      return escapeHtml(s);
+    }).join(' ');
+
+    pairedEl.innerHTML = highlightedHtml;
+
+    // Update currentData
+    updateCurrentDataFromPath(path, newText);
+    updateCurrentDataFromPath(pairedPath, pairedSentences.join(' '));
+
+    // Save
+    localStorage.setItem(currentSlug + '-content', JSON.stringify(currentData));
+    saveEdits();
+
+    // Remove mark tags after animation
+    setTimeout(() => {
+      pairedEl.querySelectorAll('mark.change-highlight').forEach(mark => {
+        const text = document.createTextNode(mark.textContent);
+        mark.parentNode.replaceChild(text, mark);
+      });
+    }, 2600);
+
+  } catch (err) {
+    console.warn('Bilingual sync error:', err.message);
+  } finally {
+    pairedEl.classList.remove('syncing');
+    syncInProgress = false;
+  }
+}
+
+async function syncFullBlock(sourceEl, pairedEl, fromLang, toLang, apiSettings) {
+  syncInProgress = true;
+  pairedEl.classList.add('syncing');
+
+  try {
+    const resp = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sentences: [sourceEl.textContent],
+        fromLang,
+        toLang,
+        context: sourceEl.textContent,
+        provider: apiSettings.provider || 'claude',
+        apiKey: apiSettings.key
+      })
+    });
+
+    if (!resp.ok) throw new Error('Sync failed');
+
+    const data = await resp.json();
+    if (!data.translations || !data.translations[0]) throw new Error('Bad response');
+
+    pairedEl.innerHTML = `<mark class="change-highlight">${escapeHtml(data.translations[0])}</mark>`;
+
+    const path = sourceEl.getAttribute('data-path');
+    const pairedPath = pairedEl.getAttribute('data-path');
+    updateCurrentDataFromPath(path, sourceEl.textContent);
+    updateCurrentDataFromPath(pairedPath, data.translations[0]);
+
+    localStorage.setItem(currentSlug + '-content', JSON.stringify(currentData));
+    saveEdits();
+
+    setTimeout(() => {
+      pairedEl.querySelectorAll('mark.change-highlight').forEach(mark => {
+        const text = document.createTextNode(mark.textContent);
+        mark.parentNode.replaceChild(text, mark);
+      });
+    }, 2600);
+
+  } catch (err) {
+    console.warn('Full block sync error:', err.message);
+  } finally {
+    pairedEl.classList.remove('syncing');
+    syncInProgress = false;
+  }
+}
+
+function updateCurrentDataFromPath(path, value) {
+  const parts = path.split('.');
+  let obj = currentData;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const key = isNaN(parts[i]) ? parts[i] : parseInt(parts[i]);
+    if (obj[key] === undefined) return;
+    obj = obj[key];
+  }
+  const lastKey = isNaN(parts[parts.length - 1]) ? parts[parts.length - 1] : parseInt(parts[parts.length - 1]);
+  obj[lastKey] = value;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 // ===== RICH TEXT SHORTCUTS (global) =====
 document.addEventListener('keydown', (e) => {
   const el = document.activeElement;
@@ -1192,6 +1427,12 @@ async function sendChat() {
     // Clear any cached edits so re-render uses new data
     localStorage.removeItem(currentSlug + '-edits');
 
+    // Snapshot current text for change highlighting
+    const preRenderSnapshot = {};
+    document.querySelectorAll('[data-path]').forEach(el => {
+      preRenderSnapshot[el.getAttribute('data-path')] = el.textContent;
+    });
+
     // Re-render affected sections
     renderGeneralPrep();
     renderPrepSheet();
@@ -1201,6 +1442,9 @@ async function sendChat() {
     initAddButtons();
     rebuildSheetNav();
     updateProgress();
+
+    // Highlight changed elements after chatbot update
+    highlightChatChanges(preRenderSnapshot);
 
   } catch (err) {
     loadingEl.textContent = 'Error: ' + err.message;
@@ -1293,6 +1537,21 @@ async function generateNotesFromChecklist() {
   btn.innerHTML = 'Generate notes from checklist';
 }
 
+
+// ===== CHANGE HIGHLIGHTING =====
+
+function highlightChatChanges(preRenderSnapshot) {
+  document.querySelectorAll('[data-path]').forEach(el => {
+    const path = el.getAttribute('data-path');
+    const oldText = preRenderSnapshot[path];
+    if (oldText !== undefined && oldText !== el.textContent) {
+      el.classList.add('change-highlight');
+      el.addEventListener('animationend', () => {
+        el.classList.remove('change-highlight');
+      }, { once: true });
+    }
+  });
+}
 
 // ===== AUTO-INIT =====
 (function() {

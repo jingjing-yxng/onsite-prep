@@ -750,15 +750,14 @@
     tag.style.left = rect.left + 'px';
     document.body.appendChild(tag);
 
-    setTimeout(function() {
-      function dismiss() {
-        backdrop.remove();
-        tag.remove();
-        btn.classList.remove('onboard-spotlight', 'onboard-pulse');
-      }
-      backdrop.addEventListener('click', dismiss);
-      btn.addEventListener('click', function() { dismiss(); }, { once: true });
-    }, 200);
+    function dismiss() {
+      backdrop.remove();
+      tag.remove();
+      btn.classList.remove('onboard-spotlight', 'onboard-pulse');
+    }
+    backdrop.addEventListener('click', dismiss);
+    tag.addEventListener('click', dismiss);
+    btn.addEventListener('click', function() { dismiss(); }, { once: true });
   }
 
   checkOnboarding();
