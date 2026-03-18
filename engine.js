@@ -346,6 +346,9 @@ function renderGeneralPrep() {
 // ===== RENDER PREP SHEET =====
 function renderPrepSheet() {
   const d = currentData;
+  const bi = d.bilingual;
+  const l2 = (d.languages && d.languages.length > 1) ? d.languages.find(l => l !== 'en') || d.languages[1] : 'zh';
+  const l2Name = LANG_NAMES[l2] || l2;
   const container = document.getElementById('prepSheetContent');
   const ps = d.prepSheet;
 
@@ -355,13 +358,23 @@ function renderPrepSheet() {
     <hr class="ps-divider">`;
 
   ps.cards.forEach(card => {
+    const hasL2Content = bi && card['content_' + l2];
     html += `<div class="ps-section" data-card-id="${card.id}">
       <div class="ps-section-header">
         <div class="ps-section-title" contenteditable="true">${card.title}</div>
         <button class="ps-delete-btn" onclick="deleteCard(this)" title="Delete card">&times;</button>
       </div>
       ${card.hint ? `<div class="ps-section-hint">${card.hint}</div>` : ''}
-      <div class="ps-editor" contenteditable="true" data-placeholder="Type your notes here... Use / for formatting commands."${!card.hint && !card.content ? ' style="min-height:200px;"' : ''}>${card.content}</div>
+      ${hasL2Content ? `<div class="ps-editor-bilingual">
+        <div>
+          <span class="lang-label" style="margin-bottom:8px;">English</span>
+          <div class="ps-editor" contenteditable="true" data-placeholder="English notes...">${card.content || ''}</div>
+        </div>
+        <div>
+          <span class="lang-label" style="background:rgba(0,201,104,0.12);color:var(--accent);margin-bottom:8px;">${l2Name}</span>
+          <div class="ps-editor" contenteditable="true" data-placeholder="${l2Name} notes..." data-lang="${l2}">${card['content_' + l2] || ''}</div>
+        </div>
+      </div>` : `<div class="ps-editor" contenteditable="true" data-placeholder="Type your notes here... Use / for formatting commands."${!card.hint && !card.content ? ' style="min-height:200px;"' : ''}>${card.content || ''}</div>`}
     </div>
     <hr class="ps-divider">`;
   });
@@ -1071,15 +1084,21 @@ function savePrepSheet() {
   document.querySelectorAll('.ps-section[data-card-id]').forEach(card => {
     const id = card.getAttribute('data-card-id');
     cardOrder.push(id);
-    const editor = card.querySelector('.ps-editor');
+    const editors = card.querySelectorAll('.ps-editor');
     const title = card.querySelector('.ps-section-title');
     const hint = card.querySelector('.ps-section-hint');
-    cards[id] = {
-      editor: editor ? editor.innerHTML : '',
+    const cardData = {
+      editor: editors[0] ? editors[0].innerHTML : '',
       title: title ? title.innerHTML : '',
       hint: hint ? hint.innerHTML : '',
       isNew: !(window.BUILTIN_IDS || []).includes(id)
     };
+    // Save second language editor if present
+    const l2Editor = card.querySelector('.ps-editor[data-lang]');
+    if (l2Editor) {
+      cardData['editor_' + l2Editor.getAttribute('data-lang')] = l2Editor.innerHTML;
+    }
+    cards[id] = cardData;
   });
   const existingIds = new Set(cardOrder);
   const data = {

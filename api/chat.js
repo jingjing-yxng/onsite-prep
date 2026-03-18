@@ -84,41 +84,93 @@ function buildNotesPrompt(currentData) {
     });
   }
 
-  return `You are an interview prep assistant. Generate Prep Sheet note cards based on the user's checklist action items.
+  // Extract rich context from the prep data
+  const meta = currentData.meta || {};
+  const companyIntel = currentData.company?.en?.rows || [];
+  const strengths = currentData.strengths?.en?.rows || [];
+  const gaps = currentData.strengths?.en?.gaps || [];
+  const questions = (currentData.questions?.categories || []).map(cat => ({
+    category: cat.label?.en || '',
+    questions: (cat.items || []).map(item => ({
+      q: item.question?.en || '',
+      a: (item.answer?.en || '').slice(0, 200)
+    }))
+  }));
+  const pitch = currentData.pitch?.en?.text || '';
+  const askThem = currentData.askThem?.en || [];
 
-CHECKLIST ITEMS:
+  return `You are a senior interview prep coach generating detailed, actionable Prep Sheet note cards. Your notes must reflect deep, specific knowledge of the company — not generic advice.
+
+ROLE CONTEXT:
+- Company: ${meta.companyName || 'Unknown'}
+- Position: ${meta.role || 'Unknown'}
+
+CANDIDATE'S 30-SECOND PITCH:
+${pitch}
+
+CANDIDATE'S STRENGTHS:
+${JSON.stringify(strengths, null, 2)}
+
+SKILL GAPS TO ADDRESS:
+${JSON.stringify(gaps, null, 2)}
+
+COMPANY INTEL (from prep kit):
+${JSON.stringify(companyIntel, null, 2)}
+
+LIKELY INTERVIEW QUESTIONS & ANSWERS:
+${JSON.stringify(questions, null, 2)}
+
+QUESTIONS THE CANDIDATE PLANS TO ASK:
+${JSON.stringify(askThem, null, 2)}
+
+CHECKLIST ACTION ITEMS:
 ${JSON.stringify(checklistItems, null, 2)}
 
-EXISTING PREP SHEET:
+EXISTING PREP SHEET (avoid duplicating these):
 ${JSON.stringify(currentData.prepSheet, null, 2)}
 
-Generate new Prep Sheet cards that serve as working templates for each major checklist action item. Each card should have a structured template that helps the user complete that checklist task.
+YOUR TASK:
+Generate Prep Sheet note cards that give the candidate a real competitive edge. For each card:
+
+1. **Company/Product Deep Dive**: If the company has multiple products, business lines, or platforms, create SEPARATE sections for each one that is relevant to the role. For each product/line:
+   - What it does, who it serves, and its market position
+   - Recent launches, pivots, or strategic shifts
+   - How it connects to the role the candidate is interviewing for
+   - Specific metrics, user counts, or business results if mentioned in the company intel
+
+2. **Role-Specific Talking Points**: Don't just list company facts — translate them into things the candidate can actually SAY in the interview. Frame bullets as "When they ask about X, mention Y because Z."
+
+3. **Connect Strengths to Products**: For each relevant product line, note which of the candidate's strengths maps to it and what specific example they could use.
+
+4. **Prepare for Gap Questions**: For each skill gap, provide a concrete deflection strategy tied to the company's actual needs.
+
+5. **Research Templates**: Where the candidate needs to do more research, provide specific URLs, search queries, or resources to check — not just "research the company."
 
 Return a JSON object with this structure:
 {
-  "chatResponse": "Generated X note cards from your checklist items.",
+  "chatResponse": "Generated X detailed note cards covering [specific topics].",
   "prepSheet": {
     "title": "${currentData.prepSheet?.title || 'Interview Prep Sheet'}",
     "cards": [
       {
         "id": "card-gen-1",
-        "title": "Card title matching the checklist item",
-        "hint": "Brief instruction on how to use this card",
-        "content": "<b>Section heading</b><br>• Structured template bullet<br>• Another prompt to fill in<br><br><b>Another section</b><br>• ..."
-      },
-      ...
+        "title": "Card title",
+        "hint": "How to use this card",
+        "content": "<b>Section heading</b><br>• Specific, actionable bullet<br>• Another bullet with real detail<br><br><b>Another section</b><br>• ..."
+      }
     ]
   }
 }
 
 Rules:
 - Return ONLY valid JSON, no markdown wrapping.
-- Create 1 card per major checklist item (combine related items).
-- Each card should have pre-structured sections with bullet templates the user can fill in.
+- Be SPECIFIC — use real product names, features, and details from the company intel. Never write generic bullets like "research the company's products" when you have the actual product info.
+- If the company has multiple products or business units, dedicate a card (or a detailed section within a card) to EACH relevant one.
+- Each bullet should be something the candidate can directly use or say — not a vague reminder.
 - Use <b>, <br>, <i>, <ul>, <li> for formatting.
 - Keep card titles short and actionable.
-- Don't create duplicate cards for items already well-covered in existing prep sheet.
-- Aim for 6-10 cards total.`;
+- Don't duplicate cards already well-covered in the existing prep sheet.
+- Aim for 8-12 cards total — more cards with focused depth is better than fewer generic ones.`;
 }
 
 

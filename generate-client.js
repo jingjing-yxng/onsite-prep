@@ -219,12 +219,12 @@ Return ONLY valid JSON — no markdown, no explanation, no text before or after 
   "prepSheet": {
     "title": "CompanyName Interview Prep Sheet",
     "cards": [
-      {"id": "card-1", "title": "Product Notes", "hint": "hints", "content": "<b>Section</b><br>• bullet"},
-      {"id": "card-2", "title": "Why This Company", "hint": "hint", "content": "<b>Draft</b><br>• reason"},
-      {"id": "card-3", "title": "30-Second Pitch", "hint": "hint", "content": "outline"},
-      {"id": "card-4", "title": "STAR Stories", "hint": "hint", "content": "<b>Story 1</b><br><i>Situation:</i> pre-filled"},
-      {"id": "card-5", "title": "Questions to Ask", "hint": "hint", "content": "questions"},
-      {"id": "card-6", "title": "Scratch Pad", "hint": null, "content": ""}
+      {"id": "card-1", "title": "Product Notes", "hint": "hints", "content": "<b>Section</b><br>• bullet"${bilingual ? `, "content_${l2}": "<b>translated section</b><br>• translated bullet"` : ''}},
+      {"id": "card-2", "title": "Why This Company", "hint": "hint", "content": "<b>Draft</b><br>• reason"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-3", "title": "30-Second Pitch", "hint": "hint", "content": "outline"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-4", "title": "STAR Stories", "hint": "hint", "content": "<b>Story 1</b><br><i>Situation:</i> pre-filled"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-5", "title": "Questions to Ask", "hint": "hint", "content": "questions"${bilingual ? `, "content_${l2}": "translated"` : ''}},
+      {"id": "card-6", "title": "Scratch Pad", "hint": null, "content": ""${bilingual ? `, "content_${l2}": ""` : ''}}
     ]
   }
 }

@@ -611,6 +611,12 @@ body {
 .ps-editor:focus {
   border-color: rgba(0,201,104,0.5);
 }
+.ps-editor-bilingual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 768px) { .ps-editor-bilingual { grid-template-columns: 1fr; } }
 .ps-editor:empty::before {
   content: attr(data-placeholder);
   color: var(--text-dim);
@@ -1818,10 +1824,12 @@ section {
   flex-direction: column;
   max-height: 280px;
   min-height: 120px;
+  overscroll-behavior: contain;
 }
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
