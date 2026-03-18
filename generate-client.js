@@ -130,19 +130,43 @@ async function callViaProxy(resumeText, jdText, provider, apiKey, bilingual, lan
   return await resp.json();
 }
 
-// Same for chat
+// Fast Claude call for chat (Haiku for speed, lower tokens)
+async function callClaudeFast(apiKey, prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: prompt }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Claude API error (${resp.status}): ${err.slice(0, 300)}`);
+  }
+  const d = await resp.json();
+  if (!d.content || !d.content[0]) throw new Error('Empty response');
+  return d.content[0].text;
+}
+
+// Chat — uses fast model + trimmed context
 async function chatClient(message, currentData, provider, apiKey, action) {
   if (provider === 'claude') {
     const prompt = action === 'generate-notes'
       ? buildNotesPromptClient(currentData)
       : buildChatPromptClient(message, currentData);
 
-    const result = await callClaudeClient(apiKey, prompt);
+    const result = await callClaudeFast(apiKey, prompt);
     const parsed = extractJSON(result);
     if (!parsed) throw new Error('Failed to parse AI response');
     return parsed;
   } else {
-    // Use proxy for non-Claude providers
     const resp = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -160,10 +184,11 @@ async function chatClient(message, currentData, provider, apiKey, action) {
 
 function buildChatPromptClient(message, data) {
   const meta = data.meta || {};
-  return `You are an interview prep editor with deep knowledge of ${meta.companyName || 'the company'}'s product landscape. The user has an existing interview prep kit for a ${meta.role || ''} role and wants to make changes.
+  // Send compact JSON (no pretty-print) to reduce tokens
+  return `You are an interview prep editor for a ${meta.role || ''} role at ${meta.companyName || 'a company'}. The user wants to modify their prep kit.
 
 CURRENT PREP DATA:
-${JSON.stringify(data, null, 2)}
+${JSON.stringify(data)}
 
 USER REQUEST:
 "${message}"
