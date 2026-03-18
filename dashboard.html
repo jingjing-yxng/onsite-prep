@@ -452,8 +452,11 @@
     } catch (err) {
       if (ticker) clearInterval(ticker);
       hideGenOverlay();
-      showToast('Generation failed: ' + err.message + '\nCreating a blank prep instead.', 'error');
-      createBlankPrep(color, bilingual, languages);
+      console.error('Generation error:', err);
+      const retry = confirm('Generation failed: ' + err.message + '\n\nClick OK to create a blank prep, or Cancel to try again.');
+      if (retry) {
+        createBlankPrep(color, bilingual, languages);
+      }
     }
   }
 
