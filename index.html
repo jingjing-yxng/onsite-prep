@@ -182,9 +182,12 @@
   function autoRegisterKimi() {
     const registry = getRegistry();
     if (registry.find(r => r.slug === 'kimi')) return;
+    // Don't re-register if user previously deleted it
+    const deleted = JSON.parse(localStorage.getItem('interview-prep-deleted') || '[]');
+    if (deleted.includes('kimi')) return;
     const hasLegacy = localStorage.getItem('kimi-checklist-v2') || localStorage.getItem('kimi-prep-edits') || localStorage.getItem('kimi-prep-sheet');
     const hasNew = localStorage.getItem('kimi-checklist') || localStorage.getItem('kimi-edits') || localStorage.getItem('kimi-prep-sheet');
-    if (hasLegacy || hasNew || window.prepData_kimi) {
+    if (hasLegacy || hasNew) {
       const d = window.prepData_kimi;
       registry.push({
         slug: 'kimi', companyName: d.meta.companyName, companyNameZh: d.meta.companyNameZh,
@@ -255,6 +258,9 @@
     registry = registry.filter(r => r.slug !== pendingDeleteSlug);
     saveRegistry(registry);
     [pendingDeleteSlug + '-content', pendingDeleteSlug + '-checklist', pendingDeleteSlug + '-edits', pendingDeleteSlug + '-prep-sheet', pendingDeleteSlug + '-documents'].forEach(k => localStorage.removeItem(k));
+    // Track deletion so auto-register doesn't bring it back
+    const deleted = JSON.parse(localStorage.getItem('interview-prep-deleted') || '[]');
+    if (!deleted.includes(pendingDeleteSlug)) { deleted.push(pendingDeleteSlug); localStorage.setItem('interview-prep-deleted', JSON.stringify(deleted)); }
     pendingDeleteSlug = null;
     closeDeleteModal();
     renderGrid();
