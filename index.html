@@ -127,6 +127,19 @@
 
 </div>
 
+<!-- Loading overlay -->
+<div class="gen-overlay" id="genOverlay">
+  <div class="gen-overlay-content">
+    <div class="gen-spinner"></div>
+    <h3 id="genTitle">Generating your prep kit...</h3>
+    <p id="genStatus">Analyzing resume and job description</p>
+  </div>
+</div>
+
+<!-- Document parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
 <!-- Auth -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -227,7 +240,7 @@
     // no auto-focus needed
   }
 
-  function createPrep() {
+  async function createPrep() {
     if (!npFiles.jd) { alert('Please upload a job description.'); return; }
     if (!npFiles.resume) { alert('Please upload your resume.'); return; }
 
@@ -238,37 +251,177 @@
       ? [document.getElementById('npLang1').value, document.getElementById('npLang2').value]
       : ['en'];
 
-    // Derive company + role from JD filename for now (LLM will parse properly later)
-    const jdName = npFiles.jd.name.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
-    const company = jdName || 'New Prep';
-    const role = 'Position';
-    const slug = slugify(company) + '-' + Date.now().toString(36);
+    // Check for API key
+    const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+    const hasApiKey = apiSettings.key && apiSettings.key.length > 5;
 
+    if (!hasApiKey) {
+      alert('Please add your AI API key in Settings first.');
+      window.location.href = 'settings.html';
+      return;
+    }
+
+    // Show loading
+    showGenOverlay('Generating your prep kit...', 'Extracting text from documents');
+
+    try {
+      // Extract text from files
+      const resumeText = await extractText(npFiles.resume);
+      updateGenStatus('Analyzing resume and job description');
+
+      const jdText = await extractText(npFiles.jd);
+      updateGenStatus('Calling AI to generate personalized prep materials...');
+
+      // Call the API
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resumeText,
+          jdText,
+          provider: apiSettings.provider || 'claude',
+          apiKey: apiSettings.key,
+          bilingual,
+          languages
+        })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(err.error || `API returned ${resp.status}`);
+      }
+
+      updateGenStatus('Building your prep kit...');
+      const aiData = await resp.json();
+
+      // Build the prep data object
+      const slug = slugify(aiData.meta?.companyName || 'prep') + '-' + Date.now().toString(36);
+
+      const prepData = {
+        meta: {
+          slug,
+          companyName: aiData.meta?.companyName || 'Interview Prep',
+          companyNameZh: aiData.meta?.companyNameZh || '',
+          role: aiData.meta?.role || 'Position',
+          roleZh: aiData.meta?.roleZh || '',
+          color,
+          sidebarTitle: aiData.meta?.sidebarTitle || (aiData.meta?.companyName + ' <span>Prep</span>'),
+          sidebarSub: aiData.meta?.sidebarSub || aiData.meta?.role
+        },
+        bilingual,
+        languages,
+        pitch: aiData.pitch || {},
+        strengths: aiData.strengths || {},
+        questions: aiData.questions || { categories: [] },
+        company: aiData.company || { en: { rows: [] } },
+        askThem: aiData.askThem || { en: [] },
+        sensitive: aiData.sensitive || { en: { title: '', context: '', script: '', do_text: '', dont_text: '', do_label: 'Do', dont_label: "Don't" } },
+        checklist: aiData.checklist || { days: [] },
+        flashcards: aiData.flashcards || [],
+        prepSheet: aiData.prepSheet || { title: aiData.meta?.companyName + ' Interview Prep Sheet', cards: [] }
+      };
+
+      // Save everything
+      localStorage.setItem(slug + '-content', JSON.stringify(prepData));
+
+      const docs = {};
+      if (npFiles.resume) docs.resume = npFiles.resume;
+      if (npFiles.jd) docs.jd = npFiles.jd;
+      localStorage.setItem(slug + '-documents', JSON.stringify(docs));
+
+      const registry = getRegistry();
+      registry.push({
+        slug,
+        companyName: prepData.meta.companyName,
+        companyNameZh: prepData.meta.companyNameZh,
+        role: prepData.meta.role,
+        roleZh: prepData.meta.roleZh,
+        color, bilingual,
+        createdAt: new Date().toISOString()
+      });
+      saveRegistry(registry);
+
+      hideGenOverlay();
+      resetNewPrepForm();
+      toggleNewForm();
+      renderGrid();
+
+      // Go directly to the new prep
+      window.location.href = 'app.html?prep=' + encodeURIComponent(slug);
+
+    } catch (err) {
+      hideGenOverlay();
+      alert('Generation failed: ' + err.message + '\n\nCreating a blank prep instead.');
+      createBlankPrep(color, bilingual, languages);
+    }
+  }
+
+  // Fallback: create blank prep without AI
+  function createBlankPrep(color, bilingual, languages) {
+    const jdName = npFiles.jd?.name?.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ') || 'New Prep';
+    const slug = slugify(jdName) + '-' + Date.now().toString(36);
     const template = JSON.parse(JSON.stringify(window.prepData_template));
     template.meta.slug = slug;
-    template.meta.companyName = company;
-    template.meta.companyNameZh = '';
-    template.meta.role = role;
-    template.meta.roleZh = '';
+    template.meta.companyName = jdName;
     template.meta.color = color;
-    template.meta.sidebarTitle = company + ' <span>Prep</span>';
-    template.meta.sidebarSub = role;
+    template.meta.sidebarTitle = jdName + ' <span>Prep</span>';
     template.bilingual = bilingual;
     template.languages = languages;
-    template.prepSheet.title = company + ' Interview Prep Sheet';
+    template.prepSheet.title = jdName + ' Interview Prep Sheet';
     localStorage.setItem(slug + '-content', JSON.stringify(template));
-
-    // Save uploaded documents
     const docs = {};
     if (npFiles.resume) docs.resume = npFiles.resume;
     if (npFiles.jd) docs.jd = npFiles.jd;
     localStorage.setItem(slug + '-documents', JSON.stringify(docs));
-
     const registry = getRegistry();
-    registry.push({ slug, companyName: company, companyNameZh: '', role, roleZh: '', color, bilingual, createdAt: new Date().toISOString() });
+    registry.push({ slug, companyName: jdName, companyNameZh: '', role: 'Position', roleZh: '', color, bilingual, createdAt: new Date().toISOString() });
     saveRegistry(registry);
     resetNewPrepForm();
     toggleNewForm(); renderGrid();
+  }
+
+  // ===== TEXT EXTRACTION =====
+  async function extractText(fileData) {
+    if (fileData.encoding === 'text') return fileData.content;
+
+    const ext = fileData.name.split('.').pop().toLowerCase();
+    const base64 = fileData.content.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    if (ext === 'pdf') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    }
+
+    if (ext === 'docx' || ext === 'doc') {
+      const result = await mammoth.extractRawText({ arrayBuffer: bytes.buffer });
+      return result.value;
+    }
+
+    // Fallback: try as text
+    return new TextDecoder().decode(bytes);
+  }
+
+  // ===== LOADING OVERLAY =====
+  function showGenOverlay(title, status) {
+    document.getElementById('genTitle').textContent = title;
+    document.getElementById('genStatus').textContent = status;
+    document.getElementById('genOverlay').classList.add('active');
+  }
+  function updateGenStatus(status) {
+    document.getElementById('genStatus').textContent = status;
+  }
+  function hideGenOverlay() {
+    document.getElementById('genOverlay').classList.remove('active');
   }
 
   function exportAll() {
