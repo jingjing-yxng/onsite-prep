@@ -127,6 +127,18 @@
 
 </div>
 
+<!-- Delete confirmation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-card">
+    <h3>Delete this prep?</h3>
+    <p id="deleteModalText">This will remove all saved data. This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="dash-btn" onclick="closeDeleteModal()">Cancel</button>
+      <button class="dash-btn danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading overlay -->
 <div class="gen-overlay" id="genOverlay">
   <div class="gen-overlay-content">
@@ -225,13 +237,32 @@
 
   function openPrep(slug) { window.location.href = 'app.html?prep=' + encodeURIComponent(slug); }
 
+  let pendingDeleteSlug = null;
+
   function deletePrep(slug) {
-    if (!confirm(`Delete "${slug}" prep? This removes all saved data for this prep.`)) return;
+    pendingDeleteSlug = slug;
+    const registry = getRegistry();
+    const prep = registry.find(r => r.slug === slug);
+    const name = prep ? prep.companyName : slug;
+    document.getElementById('deleteModalText').textContent = `This will permanently remove "${name}" and all its saved data.`;
+    document.getElementById('deleteModal').classList.add('active');
+    document.getElementById('deleteConfirmBtn').onclick = confirmDelete;
+  }
+
+  function confirmDelete() {
+    if (!pendingDeleteSlug) return;
     let registry = getRegistry();
-    registry = registry.filter(r => r.slug !== slug);
+    registry = registry.filter(r => r.slug !== pendingDeleteSlug);
     saveRegistry(registry);
-    [slug + '-content', slug + '-checklist', slug + '-edits', slug + '-prep-sheet', slug + '-documents'].forEach(k => localStorage.removeItem(k));
+    [pendingDeleteSlug + '-content', pendingDeleteSlug + '-checklist', pendingDeleteSlug + '-edits', pendingDeleteSlug + '-prep-sheet', pendingDeleteSlug + '-documents'].forEach(k => localStorage.removeItem(k));
+    pendingDeleteSlug = null;
+    closeDeleteModal();
     renderGrid();
+  }
+
+  function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.remove('active');
+    pendingDeleteSlug = null;
   }
 
   function toggleNewForm() {

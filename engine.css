@@ -1482,6 +1482,49 @@ section {
 }
 .signout-btn:hover { color: var(--red); border-color: rgba(232,69,60,0.3); }
 
+/* Confirm modal */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(28,28,30,0.8);
+  backdrop-filter: blur(8px);
+  z-index: 500;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.active { display: flex; }
+.modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 380px;
+  width: 90%;
+}
+.modal-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.modal-card p {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.dash-btn.danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: white;
+}
+.dash-btn.danger:hover {
+  background: #d03a32;
+}
+
 /* Generation loading overlay */
 .gen-overlay {
   display: none;
