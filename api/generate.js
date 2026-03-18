@@ -188,6 +188,7 @@ async function callClaude(apiKey, prompt) {
   }
 
   const data = await resp.json();
+  if (!data.content || !data.content[0]) throw new Error('Empty response from Claude');
   return data.content[0].text;
 }
 
@@ -222,5 +223,6 @@ async function callOpenAICompatible(provider, apiKey, prompt) {
   }
 
   const data = await resp.json();
+  if (!data.choices || !data.choices[0]) throw new Error('Empty response from API');
   return data.choices[0].message.content;
 }

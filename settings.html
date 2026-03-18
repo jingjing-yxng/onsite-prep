@@ -160,7 +160,7 @@
     const exported = { registry, data: {} };
     registry.forEach(prep => {
       exported.data[prep.slug] = {};
-      ['content', 'checklist', 'edits', 'prep-sheet', 'documents'].forEach(key => {
+      ['content', 'checklist', 'edits', 'prep-sheet', 'documents', 'chat'].forEach(key => {
         const val = localStorage.getItem(prep.slug + '-' + key);
         if (val) exported.data[prep.slug][key] = val;
       });

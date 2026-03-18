@@ -296,7 +296,7 @@
     let registry = getRegistry();
     registry = registry.filter(r => r.slug !== pendingDeleteSlug);
     saveRegistry(registry);
-    [pendingDeleteSlug + '-content', pendingDeleteSlug + '-checklist', pendingDeleteSlug + '-edits', pendingDeleteSlug + '-prep-sheet', pendingDeleteSlug + '-documents'].forEach(k => localStorage.removeItem(k));
+    [pendingDeleteSlug + '-content', pendingDeleteSlug + '-checklist', pendingDeleteSlug + '-edits', pendingDeleteSlug + '-prep-sheet', pendingDeleteSlug + '-documents', pendingDeleteSlug + '-chat'].forEach(k => localStorage.removeItem(k));
     // Track deletion so auto-register doesn't bring it back
     const deleted = JSON.parse(localStorage.getItem('interview-prep-deleted') || '[]');
     if (!deleted.includes(pendingDeleteSlug)) { deleted.push(pendingDeleteSlug); localStorage.setItem('interview-prep-deleted', JSON.stringify(deleted)); }
@@ -562,7 +562,7 @@
     const exported = { registry, data: {} };
     registry.forEach(prep => {
       exported.data[prep.slug] = {};
-      ['content', 'checklist', 'edits', 'prep-sheet', 'documents'].forEach(key => {
+      ['content', 'checklist', 'edits', 'prep-sheet', 'documents', 'chat'].forEach(key => {
         const val = localStorage.getItem(prep.slug + '-' + key);
         if (val) exported.data[prep.slug][key] = val;
       });
