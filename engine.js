@@ -426,6 +426,35 @@ function renderPrepSheet() {
     el.addEventListener('blur', () => { savePrepSheet(); rebuildSheetNav(); });
   });
 
+  // Wire up bilingual sync for prep sheet editors
+  if (bi) {
+    container.querySelectorAll('.ps-editor-bilingual').forEach(wrapper => {
+      const editors = wrapper.querySelectorAll('.ps-editor');
+      if (editors.length !== 2) return;
+      const enEditor = editors[0];
+      const l2Editor = editors[1];
+
+      [enEditor, l2Editor].forEach(editor => {
+        editor.addEventListener('focus', () => {
+          editor._psPreEdit = editor.innerHTML;
+        });
+        editor.addEventListener('blur', () => {
+          if (syncInProgress) return;
+          const oldHtml = editor._psPreEdit;
+          if (!oldHtml || oldHtml === editor.innerHTML) return;
+          editor._psPreEdit = null;
+
+          const isEn = !editor.hasAttribute('data-lang');
+          const paired = isEn ? l2Editor : enEditor;
+          const fromLang = isEn ? 'en' : editor.getAttribute('data-lang');
+          const toLang = isEn ? (l2Editor.getAttribute('data-lang') || 'zh') : 'en';
+
+          syncPrepSheetEditor(editor, paired, fromLang, toLang);
+        });
+      });
+    });
+  }
+
   // Store builtin IDs for this prep
   window.BUILTIN_IDS = ps.cards.map(c => c.id);
 }
@@ -830,6 +859,53 @@ async function syncFullBlock(sourceEl, pairedEl, fromLang, toLang, apiSettings) 
 
   } catch (err) {
     console.warn('Full block sync error:', err.message);
+  } finally {
+    pairedEl.classList.remove('syncing');
+    syncInProgress = false;
+  }
+}
+
+async function syncPrepSheetEditor(sourceEl, pairedEl, fromLang, toLang) {
+  const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+  if (!apiSettings.key) return;
+
+  syncInProgress = true;
+  pairedEl.classList.add('syncing');
+
+  try {
+    const sourceHtml = sourceEl.innerHTML;
+    // Strip HTML for translation, preserve structure
+    const sourceText = sourceEl.textContent;
+
+    const resp = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sentences: [sourceText],
+        fromLang,
+        toLang,
+        context: sourceText,
+        provider: apiSettings.provider || 'claude',
+        apiKey: apiSettings.key
+      })
+    });
+
+    if (!resp.ok) throw new Error('Sync failed');
+    const data = await resp.json();
+    if (!data.translations || !data.translations[0]) throw new Error('Bad response');
+
+    pairedEl.innerHTML = `<mark class="change-highlight">${escapeHtml(data.translations[0])}</mark>`;
+    savePrepSheet();
+
+    setTimeout(() => {
+      pairedEl.querySelectorAll('mark.change-highlight').forEach(mark => {
+        const text = document.createTextNode(mark.textContent);
+        mark.parentNode.replaceChild(text, mark);
+      });
+    }, 2600);
+
+  } catch (err) {
+    console.warn('Prep sheet sync error:', err.message);
   } finally {
     pairedEl.classList.remove('syncing');
     syncInProgress = false;
