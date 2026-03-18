@@ -1,5 +1,7 @@
 // Vercel serverless function — handles chat edits + prep sheet generation
 
+module.exports.config = { maxDuration: 60 };
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -24,13 +26,8 @@ module.exports = async (req, res) => {
     }
 
     // Parse JSON from response
-    let parsed;
-    try {
-      let jsonStr = result;
-      const jsonMatch = result.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (jsonMatch) jsonStr = jsonMatch[1];
-      parsed = JSON.parse(jsonStr.trim());
-    } catch (e) {
+    const parsed = extractJSON(result);
+    if (!parsed) {
       return res.status(422).json({ error: 'Failed to parse response', raw: result.slice(0, 500) });
     }
 
@@ -125,6 +122,18 @@ Rules:
 }
 
 
+function extractJSON(text) {
+  try { return JSON.parse(text.trim()); } catch(e) {}
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) { try { return JSON.parse(codeBlock[1].trim()); } catch(e) {} }
+  const firstBrace = text.indexOf('{');
+  const lastBrace = text.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try { return JSON.parse(text.slice(firstBrace, lastBrace + 1)); } catch(e) {}
+  }
+  return null;
+}
+
 // ===== API CALLERS (same as generate.js) =====
 
 async function callClaude(apiKey, prompt) {
@@ -137,7 +146,7 @@ async function callClaude(apiKey, prompt) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 8192,
+      max_tokens: 16384,
       messages: [{ role: 'user', content: prompt }]
     })
   });
@@ -160,7 +169,7 @@ async function callOpenAICompatible(provider, apiKey, prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model, max_tokens: 8192,
+      model, max_tokens: 16384,
       messages: [
         { role: 'system', content: 'You are an expert interview coach. Return only valid JSON.' },
         { role: 'user', content: prompt }

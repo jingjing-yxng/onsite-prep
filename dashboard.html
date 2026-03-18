@@ -195,6 +195,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="toast.js"></script>
 
 <!-- Data files (for seed access + progress calculation) -->
 <script src="data/kimi.js"></script>
@@ -316,8 +317,8 @@
   }
 
   async function createPrep() {
-    if (!npFiles.jd) { alert('Please upload a job description.'); return; }
-    if (!npFiles.resume) { alert('Please upload your resume.'); return; }
+    if (!npFiles.jd) { showToast('Please upload a job description.', 'warning'); return; }
+    if (!npFiles.resume) { showToast('Please upload your resume.', 'warning'); return; }
 
     const color = document.getElementById('npColor').value;
     const langMode = document.getElementById('npLangMode').value;
@@ -331,8 +332,8 @@
     const hasApiKey = apiSettings.key && apiSettings.key.length > 5;
 
     if (!hasApiKey) {
-      alert('Please add your AI API key in Settings first.');
-      window.location.href = 'settings.html';
+      showToast('Please add your AI API key in Settings first.', 'warning');
+      setTimeout(function() { window.location.href = 'settings.html'; }, 1500);
       return;
     }
 
@@ -438,8 +439,8 @@
       });
       saveRegistry(registry);
 
-      updateGenProgress(100, 'You\'re all set — opening your prep kit');
-      await new Promise(r => setTimeout(r, 600));
+      document.getElementById('genTitle').textContent = 'You\'re all set.';
+      await new Promise(r => setTimeout(r, 800));
       hideGenOverlay();
       resetNewPrepForm();
       toggleNewForm();
@@ -451,7 +452,7 @@
     } catch (err) {
       if (ticker) clearInterval(ticker);
       hideGenOverlay();
-      alert('Generation failed: ' + err.message + '\n\nCreating a blank prep instead.');
+      showToast('Generation failed: ' + err.message + '\nCreating a blank prep instead.', 'error');
       createBlankPrep(color, bilingual, languages);
     }
   }
@@ -586,7 +587,7 @@
     reader.onload = function(e) {
       try {
         const imported = JSON.parse(e.target.result);
-        if (!imported.registry || !imported.data) { alert('Invalid import file.'); return; }
+        if (!imported.registry || !imported.data) { showToast('Invalid import file.', 'error'); return; }
         const existing = getRegistry();
         const existingSlugs = new Set(existing.map(r => r.slug));
         imported.registry.forEach(prep => { if (!existingSlugs.has(prep.slug)) existing.push(prep); });
@@ -597,8 +598,8 @@
             else localStorage.setItem(slug + '-' + key, imported.data[slug][key]);
           });
         });
-        renderGrid(); alert('Import successful!');
-      } catch (err) { alert('Failed to import: ' + err.message); }
+        renderGrid(); showToast('Import successful!', 'success');
+      } catch (err) { showToast('Failed to import: ' + err.message, 'error'); }
     };
     reader.readAsText(file); event.target.value = '';
   }
@@ -629,10 +630,10 @@
   }
 
   function processNewPrepFile(file, type) {
-    if (file.size > 10 * 1024 * 1024) { alert('File too large (max 10MB).'); return; }
+    if (file.size > 10 * 1024 * 1024) { showToast('File too large (max 10MB).', 'error'); return; }
     const ext = '.' + file.name.split('.').pop().toLowerCase();
     const validExts = ['.pdf', '.docx', '.doc', '.txt', '.md'];
-    if (!validExts.includes(ext)) { alert('Unsupported file type. Use PDF, DOCX, TXT, or MD.'); return; }
+    if (!validExts.includes(ext)) { showToast('Unsupported file type. Use PDF, DOCX, TXT, or MD.', 'error'); return; }
     const reader = new FileReader();
     if (ext === '.txt' || ext === '.md') {
       reader.onload = (e) => { storeNewPrepFile(type, file, 'text', e.target.result); };
@@ -692,6 +693,75 @@
   autoRegisterKimi();
   renderGrid();
   initNewPrepDropZones();
+
+  // ===== ONBOARDING =====
+  function checkOnboarding() {
+    const params = new URLSearchParams(window.location.search);
+
+    // Returning from settings setup — show New Prep tag
+    if (params.get('welcome') === '1') {
+      history.replaceState(null, '', 'dashboard.html');
+      setTimeout(showNewPrepTag, 300);
+      return;
+    }
+
+    // First-time user — no API key yet
+    const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
+    const hasKey = apiSettings.key && apiSettings.key.length > 5;
+    if (!hasKey && !localStorage.getItem('interview-prep-onboarded')) {
+      showWelcome();
+    }
+  }
+
+  function showWelcome() {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'onboard-backdrop';
+    document.body.appendChild(backdrop);
+
+    const card = document.createElement('div');
+    card.className = 'onboard-welcome';
+    card.innerHTML = '<h2>Welcome to onsite.</h2>' +
+      '<p>Connect an AI provider to generate tailored interview prep from your resume and job description.</p>' +
+      '<button class="onboard-cta" onclick="goSetup()">Set up AI provider &rarr;</button>';
+    document.body.appendChild(card);
+  }
+
+  function goSetup() {
+    localStorage.setItem('interview-prep-onboarded', '1');
+    window.location.href = 'settings.html?setup=1';
+  }
+
+  function showNewPrepTag() {
+    const btn = document.querySelector('.dash-btn.primary');
+    if (!btn) return;
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'onboard-backdrop';
+    document.body.appendChild(backdrop);
+
+    btn.classList.add('onboard-spotlight', 'onboard-pulse');
+
+    const rect = btn.getBoundingClientRect();
+    const tag = document.createElement('div');
+    tag.className = 'onboard-tag';
+    tag.setAttribute('data-arrow', 'up');
+    tag.textContent = 'Create your first interview prep — upload your resume and job description.';
+    tag.style.top = (rect.bottom + 12) + 'px';
+    tag.style.left = rect.left + 'px';
+    document.body.appendChild(tag);
+
+    setTimeout(function() {
+      function dismiss() {
+        backdrop.remove();
+        tag.remove();
+        btn.classList.remove('onboard-spotlight', 'onboard-pulse');
+      }
+      backdrop.addEventListener('click', dismiss);
+      btn.addEventListener('click', function() { dismiss(); }, { once: true });
+    }, 200);
+  }
+
+  checkOnboarding();
 </script>
 
 </body>

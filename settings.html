@@ -84,6 +84,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
+<script src="toast.js"></script>
 
 <script>
   requireAuth();
@@ -178,7 +179,7 @@
     reader.onload = function(e) {
       try {
         const imported = JSON.parse(e.target.result);
-        if (!imported.registry || !imported.data) { alert('Invalid import file.'); return; }
+        if (!imported.registry || !imported.data) { showToast('Invalid import file.', 'error'); return; }
         const existing = getRegistry();
         const existingSlugs = new Set(existing.map(r => r.slug));
         imported.registry.forEach(prep => { if (!existingSlugs.has(prep.slug)) existing.push(prep); });
@@ -188,14 +189,95 @@
             localStorage.setItem(slug + '-' + key, imported.data[slug][key]);
           });
         });
-        alert('Import successful!');
-      } catch (err) { alert('Failed to import: ' + err.message); }
+        showToast('Import successful!', 'success');
+      } catch (err) { showToast('Failed to import: ' + err.message, 'error'); }
     };
     reader.readAsText(file); event.target.value = '';
   }
 
   // INIT
   loadApiSettings();
+
+  // ===== SETUP MODE (onboarding) =====
+  function checkSetupMode() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('setup') !== '1') return;
+    history.replaceState(null, '', 'settings.html');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'onboard-backdrop';
+    backdrop.id = 'setupBackdrop';
+    document.body.appendChild(backdrop);
+
+    // Spotlight the AI provider card
+    const card = document.querySelector('.settings-card');
+    card.classList.add('onboard-spotlight');
+
+    // Step 1: Tag on provider cards
+    const providers = document.getElementById('providerCards');
+    const rect1 = providers.getBoundingClientRect();
+    const tag1 = document.createElement('div');
+    tag1.className = 'onboard-tag';
+    tag1.setAttribute('data-arrow', 'up');
+    tag1.textContent = 'Pick your AI provider';
+    tag1.style.top = (rect1.bottom + 12) + 'px';
+    tag1.style.left = rect1.left + 'px';
+    document.body.appendChild(tag1);
+
+    // Advance to API key step on provider click or after 2.5s
+    let advanced = false;
+    function advanceToKey() {
+      if (advanced) return;
+      advanced = true;
+      tag1.remove();
+      showApiKeyTag();
+    }
+    providers.addEventListener('click', advanceToKey, { once: true });
+    setTimeout(advanceToKey, 2500);
+  }
+
+  function showApiKeyTag() {
+    const wrap = document.querySelector('.api-key-wrap');
+    const rect = wrap.getBoundingClientRect();
+    const tag = document.createElement('div');
+    tag.className = 'onboard-tag';
+    tag.id = 'apiKeyTag';
+    tag.setAttribute('data-arrow', 'up');
+    tag.textContent = 'Paste your API key here';
+    tag.style.top = (rect.bottom + 12) + 'px';
+    tag.style.left = rect.left + 'px';
+    document.body.appendChild(tag);
+
+    document.getElementById('apiKey').focus();
+
+    // Watch for key entry
+    const input = document.getElementById('apiKey');
+    function onInput() {
+      if (input.value.trim().length > 5) {
+        tag.remove();
+        input.removeEventListener('input', onInput);
+        showSetupComplete();
+      }
+    }
+    input.addEventListener('input', onInput);
+  }
+
+  function showSetupComplete() {
+    const backdrop = document.getElementById('setupBackdrop');
+    if (backdrop) backdrop.remove();
+    document.querySelector('.settings-card').classList.remove('onboard-spotlight');
+
+    const tag = document.createElement('div');
+    tag.className = 'onboard-tag';
+    tag.style.bottom = '32px';
+    tag.style.right = '32px';
+    tag.style.top = 'auto';
+    tag.style.left = 'auto';
+    tag.innerHTML = 'You\'re all set!<br><button class="onboard-continue" onclick="window.location.href=\'dashboard.html?welcome=1\'">Go to Dashboard &rarr;</button>';
+    document.body.appendChild(tag);
+  }
+
+  checkSetupMode();
 </script>
 
 </body>

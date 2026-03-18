@@ -2,6 +2,8 @@
 
 let currentSlug = null;
 let currentData = null;
+let syncInProgress = false;
+let syncToastShown = false;
 
 // Deep merge utility — recursively merges src into target
 function deepMerge(target, src) {
@@ -59,7 +61,7 @@ function loadPrep(slug) {
 
   // Update flashcard button text
   const flashBtn = document.getElementById('flashcardBtn');
-  if (flashBtn) flashBtn.textContent = currentData.bilingual ? 'Practice 练习' : 'Practice';
+  if (flashBtn) flashBtn.textContent = 'Practice';
 
   // Update page title
   document.title = currentData.meta.companyName + ' — Interview Prep';
@@ -88,13 +90,13 @@ function renderSidebar() {
   // Build General Prep nav
   const navContainer = document.getElementById('sidebarNav');
   const sections = [
-    { id: 'pitch', label: d.bilingual ? 'Pitch 电梯演讲' : 'Pitch' },
-    { id: 'strengths', label: d.bilingual ? 'Strengths 优势' : 'Strengths' },
-    { id: 'questions', label: d.bilingual ? 'Questions 面试题' : 'Questions' },
-    { id: 'company', label: d.bilingual ? 'Company 公司' : 'Company Intel' },
-    { id: 'ask-them', label: d.bilingual ? 'Ask Them 反问' : 'Ask Them' },
-    { id: 'controversy', label: d.bilingual ? 'Sensitive 敏感' : 'Sensitive' },
-    { id: 'checklist', label: d.bilingual ? 'Checklist 清单' : 'Checklist' }
+    { id: 'pitch', label: 'Pitch' },
+    { id: 'strengths', label: 'Strengths' },
+    { id: 'questions', label: 'Questions' },
+    { id: 'company', label: 'Company Intel' },
+    { id: 'ask-them', label: 'Ask Them' },
+    { id: 'controversy', label: 'Sensitive' },
+    { id: 'checklist', label: 'Checklist' }
   ];
   navContainer.innerHTML = sections.map((s, i) =>
     `<a href="#${s.id}"><span class="nav-num">${i + 1}</span> ${s.label}</a>`
@@ -122,10 +124,16 @@ function switchTab(tab) {
   }
 }
 
+// Language name map
+const LANG_NAMES = { en: 'English', zh: '中文', fr: 'Français', es: 'Español', de: 'Deutsch', ja: '日本語', ko: '한국어', pt: 'Português', ar: 'العربية' };
+
 // ===== RENDER GENERAL PREP =====
 function renderGeneralPrep() {
   const d = currentData;
   const bi = d.bilingual;
+  // Determine the second language key from the data
+  const l2 = (d.languages && d.languages.length > 1) ? d.languages.find(l => l !== 'en') || d.languages[1] : 'zh';
+  const l2Name = LANG_NAMES[l2] || l2;
   const container = document.getElementById('generalPrepContent');
   const checkSvg = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5L5.5 10.5L11.5 4.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -134,19 +142,19 @@ function renderGeneralPrep() {
   // 1. Pitch
   html += `<section id="pitch">
     <div class="section-header"><div class="section-num">1</div>
-      <h2>${bi ? 'Your 30-Second Pitch &middot; 30秒电梯演讲' : 'Your 30-Second Pitch'}</h2>
+      <h2>Your 30-Second Pitch</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       <div class="lang-en"><span class="lang-label">English</span>
         <div class="pitch-card">
-          <span class="pitch-label">${d.pitch.en.label}</span>
-          <p>${d.pitch.en.text}</p>
+          <span class="pitch-label" data-path="pitch.en.label">${d.pitch?.en?.label || ''}</span>
+          <p data-path="pitch.en.text">${d.pitch?.en?.text || ''}</p>
         </div>
       </div>
-      ${bi ? `<div class="lang-zh"><span class="lang-label">中文</span>
+      ${bi && d.pitch[l2] ? `<div class="lang-zh"><span class="lang-label">${l2Name}</span>
         <div class="pitch-card">
-          <span class="pitch-label">${d.pitch.zh.label}</span>
-          <p>${d.pitch.zh.text}</p>
+          <span class="pitch-label" data-path="pitch.${l2}.label">${d.pitch[l2].label}</span>
+          <p data-path="pitch.${l2}.text">${d.pitch[l2].text}</p>
         </div>
       </div>` : ''}
     </div>
@@ -154,16 +162,16 @@ function renderGeneralPrep() {
 
   // 2. Strengths
   function renderStrengthCol(lang, data) {
-    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>
+    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
       <div class="strength-grid">`;
-    data.rows.forEach(r => {
-      s += `<div class="strength-row"><div>${r[0]}</div><div>${r[1]}</div></div>`;
+    data.rows.forEach((r, ri) => {
+      s += `<div class="strength-row"><div data-path="strengths.${lang}.rows.${ri}.0">${r[0]}</div><div data-path="strengths.${lang}.rows.${ri}.1">${r[1]}</div></div>`;
     });
     s += '</div>';
     if (data.gaps && data.gaps.length) {
       s += '<div class="gap-cards">';
-      data.gaps.forEach(g => {
-        s += `<div class="gap-card"><h4>${g.title}</h4><p>${g.text}</p></div>`;
+      data.gaps.forEach((g, gi) => {
+        s += `<div class="gap-card"><h4 data-path="strengths.${lang}.gaps.${gi}.title">${g.title}</h4><p data-path="strengths.${lang}.gaps.${gi}.text">${g.text}</p></div>`;
       });
       s += '</div>';
     }
@@ -172,29 +180,32 @@ function renderGeneralPrep() {
   }
   html += `<section id="strengths">
     <div class="section-header"><div class="section-num">2</div>
-      <h2>${bi ? 'Your Strengths &middot; 你的优势' : 'Your Strengths'}</h2>
+      <h2>Your Strengths</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderStrengthCol('en', d.strengths.en)}
-      ${bi ? renderStrengthCol('zh', d.strengths.zh) : ''}
+      ${bi && d.strengths[l2] ? renderStrengthCol(l2, d.strengths[l2]) : ''}
     </div>
   </section>`;
 
   // 3. Questions
   function renderQACol(lang, categories) {
-    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>`;
-    categories.forEach(cat => {
-      s += `<div class="qa-category"><div class="qa-category-label">${cat.label[lang]}</div>`;
-      if (cat.values) {
-        s += `<div class="values-bar">${cat.values[lang].map(v => `<span>${v}</span>`).join('')}</div>`;
+    let s = `<div class="lang-${lang === 'en' ? 'en' : 'zh'}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>`;
+    categories.forEach((cat, ci) => {
+      const catLabel = (cat.label && (cat.label[lang] || cat.label.en)) || '';
+      s += `<div class="qa-category"><div class="qa-category-label" data-path="questions.categories.${ci}.label.${lang}">${catLabel}</div>`;
+      if (cat.values && cat.values[lang]) {
+        s += `<div class="values-bar">${cat.values[lang].map((v, vi) => `<span data-path="questions.categories.${ci}.values.${lang}.${vi}">${v}</span>`).join('')}</div>`;
       }
-      cat.items.forEach(item => {
+      (cat.items || []).forEach((item, ii) => {
+        const q = (item.question && (item.question[lang] || item.question.en)) || '';
+        const a = (item.answer && (item.answer[lang] || item.answer.en)) || '';
         s += `<div class="qa-item">
           <div class="qa-question" onclick="toggleQA(this)">
-            <h3>${item.question[lang]}</h3>
+            <h3 data-path="questions.categories.${ci}.items.${ii}.question.${lang}">${q}</h3>
             <div class="qa-toggle">+</div>
           </div>
-          <div class="qa-answer"><div class="qa-answer-inner">${item.answer[lang]}</div></div>
+          <div class="qa-answer"><div class="qa-answer-inner" data-path="questions.categories.${ci}.items.${ii}.answer.${lang}">${a}</div></div>
         </div>`;
       });
       s += '</div>';
@@ -204,75 +215,75 @@ function renderGeneralPrep() {
   }
   html += `<section id="questions">
     <div class="section-header"><div class="section-num">3</div>
-      <h2>${bi ? 'Likely Questions &middot; 可能的面试题' : 'Likely Questions'}</h2>
+      <h2>Likely Questions</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderQACol('en', d.questions.categories)}
-      ${bi ? renderQACol('zh', d.questions.categories) : ''}
+      ${bi ? renderQACol(l2, d.questions.categories) : ''}
     </div>
   </section>`;
 
   // 4. Company Intel
   function renderCompanyCol(lang, data) {
-    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>
+    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
       <div class="company-grid">`;
-    data.rows.forEach(r => {
-      s += `<div class="company-row"><div>${r[0]}</div><div>${r[1]}</div></div>`;
+    data.rows.forEach((r, ri) => {
+      s += `<div class="company-row"><div data-path="company.${lang}.rows.${ri}.0">${r[0]}</div><div data-path="company.${lang}.rows.${ri}.1">${r[1]}</div></div>`;
     });
     s += '</div></div>';
     return s;
   }
   html += `<section id="company">
     <div class="section-header"><div class="section-num">4</div>
-      <h2>${bi ? 'Company Intel &middot; 公司情报' : 'Company Intel'}</h2>
+      <h2>Company Intel</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderCompanyCol('en', d.company.en)}
-      ${bi ? renderCompanyCol('zh', d.company.zh) : ''}
+      ${bi && d.company[l2] ? renderCompanyCol(l2, d.company[l2]) : ''}
     </div>
   </section>`;
 
   // 5. Ask Them
   function renderAskCol(lang, items) {
-    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>
+    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
       <div class="ask-list">`;
-    items.forEach(item => {
-      s += `<div class="ask-item">${item}</div>`;
+    items.forEach((item, i) => {
+      s += `<div class="ask-item" data-path="askThem.${lang}.${i}">${item}</div>`;
     });
     s += '</div></div>';
     return s;
   }
   html += `<section id="ask-them">
     <div class="section-header"><div class="section-num">5</div>
-      <h2>${bi ? 'Questions to Ask &middot; 反问环节' : 'Questions to Ask'}</h2>
+      <h2>Questions to Ask</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderAskCol('en', d.askThem.en)}
-      ${bi ? renderAskCol('zh', d.askThem.zh) : ''}
+      ${bi && d.askThem[l2] ? renderAskCol(l2, d.askThem[l2]) : ''}
     </div>
   </section>`;
 
   // 6. Sensitive
   function renderSensitiveCol(lang, data) {
-    return `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>
+    return `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
       <div class="controversy-card">
-        <h3>${data.title}</h3>
-        <p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;">${data.context}</p>
-        <div class="script-box">${data.script}</div>
+        <h3 data-path="sensitive.${lang}.title">${data.title}</h3>
+        <p style="font-size:12.5px;color:var(--text-dim);line-height:1.7;" data-path="sensitive.${lang}.context">${data.context}</p>
+        <div class="script-box" data-path="sensitive.${lang}.script">${data.script}</div>
         <div class="do-dont">
-          <div class="do-col"><h4>${data.do_label}</h4><p>${data.do_text}</p></div>
-          <div class="dont-col"><h4>${data.dont_label}</h4><p>${data.dont_text}</p></div>
+          <div class="do-col"><h4>${data.do_label}</h4><p data-path="sensitive.${lang}.do_text">${data.do_text}</p></div>
+          <div class="dont-col"><h4>${data.dont_label}</h4><p data-path="sensitive.${lang}.dont_text">${data.dont_text}</p></div>
         </div>
       </div>
     </div>`;
   }
   html += `<section id="controversy">
     <div class="section-header"><div class="section-num">6</div>
-      <h2>${bi ? 'Sensitive Topic &middot; 敏感话题' : 'Sensitive Topic'}</h2>
+      <h2>Sensitive Topic</h2>
     </div>
     <div class="${bi ? 'bilingual' : 'monolingual'}">
       ${renderSensitiveCol('en', d.sensitive.en)}
-      ${bi ? renderSensitiveCol('zh', d.sensitive.zh) : ''}
+      ${bi && d.sensitive[l2] ? renderSensitiveCol(l2, d.sensitive[l2]) : ''}
     </div>
   </section>`;
 
@@ -280,14 +291,16 @@ function renderGeneralPrep() {
   let checkIdx = 0;
   function renderChecklistCol(lang, day) {
     const startIdx = checkIdx;
-    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : '中文'}</span>
+    let s = `<div class="lang-${lang}"><span class="lang-label">${lang === 'en' ? 'English' : (LANG_NAMES[lang] || lang)}</span>
       <div class="checklist">`;
     day.items.forEach((item, i) => {
       const idx = startIdx + i;
+      const itemText = (item.text && (item.text[lang] || item.text.en)) || '';
+      const itemDetail = item.detail && (item.detail[lang] || item.detail.en);
       s += `<div class="check-item" data-idx="${idx}">
         <div class="check-box" onclick="toggleCheck(this.parentElement, ${idx})">${checkSvg}</div>
-        <div><div class="check-text">${item.text[lang]}</div>${item.detail && item.detail[lang] ? `<div class="check-detail">${item.detail[lang]}</div>` : ''}</div>
-        <span class="time-est">${item.time}</span>
+        <div><div class="check-text">${itemText}</div>${itemDetail ? `<div class="check-detail">${itemDetail}</div>` : ''}</div>
+        <span class="time-est">${item.time || ''}</span>
       </div>`;
     });
     s += '</div></div>';
@@ -296,11 +309,11 @@ function renderGeneralPrep() {
 
   html += `<section id="checklist">
     <div class="section-header"><div class="section-num">7</div>
-      <h2>${bi ? 'Prep Checklist &middot; 准备清单' : 'Prep Checklist'}</h2>
+      <h2>Prep Checklist</h2>
     </div>`;
 
   d.checklist.days.forEach(day => {
-    const dayLabel = bi ? `${day.label.en} ${day.label.zh}` : day.label.en;
+    const dayLabel = bi && day.label[l2] ? `${day.label.en} ${day.label[l2]}` : day.label.en;
     html += `<div class="checklist-day ${day.cssClass}">
       <div class="checklist-day-header">
         <span class="day-badge">${day.badge}</span>
@@ -313,7 +326,7 @@ function renderGeneralPrep() {
     html += renderChecklistCol('en', day);
     // ZH column (if bilingual)
     if (bi) {
-      html += renderChecklistCol('zh', day);
+      html += renderChecklistCol(l2, day);
     }
     // Advance the global index
     checkIdx += day.items.length;
@@ -442,6 +455,10 @@ function initScrollSpy() {
 // ===== FLASHCARDS =====
 let currentCard = 0;
 function openFlashcards() {
+  if (!currentData.flashcards || currentData.flashcards.length === 0) {
+    if (typeof showToast === 'function') showToast('No flashcards available for this prep.', 'warning');
+    return;
+  }
   currentCard = 0;
   showCard();
   document.getElementById('flashcardOverlay').classList.add('active');
@@ -454,8 +471,11 @@ function showCard() {
   const bi = currentData.bilingual;
   document.getElementById('flashcard').classList.remove('flipped');
   if (bi) {
-    document.getElementById('fcFront').innerHTML = `<div class="fc-bilingual"><div class="fc-zh">${fc.zh_q}</div><div>${fc.en_q}</div></div>`;
-    document.getElementById('fcBack').innerHTML = `<div class="fc-bilingual-answer"><div>${fc.zh_a}</div><div>${fc.en_a}</div></div>`;
+    const l2 = (currentData.languages && currentData.languages.length > 1) ? currentData.languages.find(l => l !== 'en') || currentData.languages[1] : 'zh';
+    const l2q = fc[l2 + '_q'] || '';
+    const l2a = fc[l2 + '_a'] || '';
+    document.getElementById('fcFront').innerHTML = `<div class="fc-bilingual"><div class="fc-zh">${l2q}</div><div>${fc.en_q}</div></div>`;
+    document.getElementById('fcBack').innerHTML = `<div class="fc-bilingual-answer"><div>${l2a}</div><div>${fc.en_a}</div></div>`;
   } else {
     document.getElementById('fcFront').innerHTML = `<div class="fc-mono">${fc.en_q}</div>`;
     document.getElementById('fcBack').innerHTML = `<div class="fc-mono-answer">${fc.en_a}</div>`;
@@ -499,8 +519,22 @@ function initEditable() {
       el.style.outline = 'none';
       el.style.borderRadius = '4px';
       el.style.transition = 'box-shadow 0.2s';
-      el.addEventListener('focus', () => { el.style.boxShadow = '0 0 0 1px rgba(108,92,231,0.4)'; });
-      el.addEventListener('blur', () => { el.style.boxShadow = 'none'; saveEdits(); });
+      el.addEventListener('focus', () => {
+        el.style.boxShadow = '0 0 0 1px rgba(108,92,231,0.4)';
+        // Capture pre-edit snapshot for bilingual sync
+        const path = el.getAttribute('data-path');
+        if (path) {
+          el._preEditSnapshot = { path, text: el.textContent };
+        }
+      });
+      el.addEventListener('blur', () => {
+        el.style.boxShadow = 'none';
+        saveEdits();
+        // Trigger bilingual sync if applicable
+        if (!syncInProgress && el._preEditSnapshot && currentData.bilingual) {
+          handleBilingualSync(el);
+        }
+      });
     });
   });
 }
@@ -1209,7 +1243,7 @@ function loadChatHistory() {
 async function generateNotesFromChecklist() {
   const apiSettings = JSON.parse(localStorage.getItem('interview-prep-api') || '{}');
   if (!apiSettings.key) {
-    alert('Please add your API key in Settings first.');
+    showToast('Please add your API key in Settings first.', 'warning');
     return;
   }
 
@@ -1252,7 +1286,7 @@ async function generateNotesFromChecklist() {
     addChatMsg('ai', updates.chatResponse || 'Generated notes from your checklist.');
 
   } catch (err) {
-    alert('Generation failed: ' + err.message);
+    showToast('Generation failed: ' + err.message, 'error');
   }
 
   btn.disabled = false;

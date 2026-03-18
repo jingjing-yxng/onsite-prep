@@ -1,0 +1,55 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "onsite." [ref=e5] [cursor=pointer]:
+          - /url: index.html
+          - heading "onsite." [level=1] [ref=e6]
+        - generic [ref=e7]:
+          - link "Settings" [ref=e8] [cursor=pointer]:
+            - /url: settings.html
+            - img [ref=e9]
+          - button "Sign out" [ref=e12] [cursor=pointer]:
+            - img [ref=e13]
+      - paragraph [ref=e16]: Your interview prep materials, all in one place and empowered by AI.
+    - generic [ref=e17]:
+      - button "+ New Prep" [active] [ref=e18] [cursor=pointer]
+      - button "Export All" [ref=e19] [cursor=pointer]
+      - generic [ref=e20] [cursor=pointer]: Import
+    - generic [ref=e21]:
+      - heading "Create New Interview Prep" [level=3] [ref=e22]
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - generic [ref=e25]: Resume
+          - generic [ref=e28] [cursor=pointer]: Drop or upload
+        - generic [ref=e29]:
+          - generic [ref=e30]: Job Description
+          - generic [ref=e33] [cursor=pointer]: Drop or upload
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36]: Accent Color
+          - generic [ref=e37]:
+            - button [ref=e38] [cursor=pointer]
+            - button [ref=e39] [cursor=pointer]
+            - button [ref=e40] [cursor=pointer]
+            - button [ref=e41] [cursor=pointer]
+            - button [ref=e42] [cursor=pointer]
+            - button [ref=e43] [cursor=pointer]
+            - button [ref=e44] [cursor=pointer]
+            - button [ref=e45] [cursor=pointer]
+        - generic [ref=e46]:
+          - generic [ref=e47]: Language
+          - combobox [ref=e48]:
+            - option "English" [selected]
+            - option "Bilingual"
+      - generic [ref=e49]:
+        - button "Create" [ref=e50] [cursor=pointer]
+        - button "Cancel" [ref=e51] [cursor=pointer]
+    - generic [ref=e52]:
+      - paragraph [ref=e53]: No interview preps yet.
+      - paragraph [ref=e54]: Click "New Prep" to get started.
+  - generic [ref=e56]: Create your first interview prep — upload your resume and job description.
+```

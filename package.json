@@ -1,0 +1,25 @@
+{
+  "name": "interview-prep",
+  "version": "1.0.0",
+  "description": "**Interview prep that knows your role.**",
+  "main": "auth.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jingjing-yxng/onsite-prep.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jingjing-yxng/onsite-prep/issues"
+  },
+  "homepage": "https://github.com/jingjing-yxng/onsite-prep#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "serve": "^14.2.6"
+  }
+}

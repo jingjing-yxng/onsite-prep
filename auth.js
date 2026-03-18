@@ -40,7 +40,7 @@ async function signInWithGoogle() {
     if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') {
       // User closed the popup, do nothing
     } else {
-      alert('Login failed: ' + e.message);
+      showToast('Login failed: ' + e.message, 'error');
     }
   }
 }
